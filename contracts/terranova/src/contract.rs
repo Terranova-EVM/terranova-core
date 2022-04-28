@@ -7,7 +7,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:counter";
+const CONTRACT_NAME: &str = "crates.io:terranova";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -28,14 +28,20 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        _ => Ok(Response::new())
+        ExecuteMsg::CreateAccount {} => {  
+            todo!()
+        },
+        ExecuteMsg::CallFromRawEthereumTX {} => {
+            todo!()
+        }
+        _ => panic!("Not implemented")
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        _ => Ok(to_binary::<i32>(&1)?)
+        _ => Ok(to_binary::<i32>(&0)?)
     }
 }
 

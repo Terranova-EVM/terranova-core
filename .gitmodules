@@ -1,0 +1,3 @@
+[submodule "contracts/evm"]
+	path = contracts/rust-evm
+	url = git@github.com:neonlabsorg/evm.git
