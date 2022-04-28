@@ -1,5 +1,5 @@
 [package]
-name = "terranova-evm"
+name = "terranova"
 version = "0.1.0-dev"
 authors = ["Neel Somani <neel@berkeley.edu>"]
 edition = "2018"
