@@ -4,7 +4,8 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::message;
+use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terranova";
@@ -27,11 +28,14 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // Only trusted operators can make calls
+    // TODO: First check that the message sender is an operator
+
     match msg {
-        ExecuteMsg::CreateAccount {} => {  
-            todo!()
+        ExecuteMsg::CreateAccount { operator, eth_address, contract_byte_code } => {  
+            message::account_create::process(deps, operator, eth_address, contract_byte_code)?
         },
-        ExecuteMsg::CallFromRawEthereumTX {} => {
+        ExecuteMsg::CallFromRawEthereumTX { .. } => {
             todo!()
         }
         _ => panic!("Not implemented")
