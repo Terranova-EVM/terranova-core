@@ -32,9 +32,6 @@ pub fn execute(
     // TODO: First check that the message sender is an operator
 
     match msg {
-        ExecuteMsg::CreateAccount { operator, eth_address, contract_byte_code } => {  
-            message::account_create::process(deps, operator, eth_address, contract_byte_code)?
-        },
         ExecuteMsg::CallFromRawEthereumTX { .. } => {
             todo!()
         }
@@ -45,7 +42,7 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        _ => Ok(to_binary::<i32>(&0)?)
+        _ => Ok(to_binary(&0_i32)?)
     }
 }
 
