@@ -1,3 +1,6 @@
+#[macro_use]
+mod debug;
+#[macro_use]
 mod error;
 
 pub mod contract;
