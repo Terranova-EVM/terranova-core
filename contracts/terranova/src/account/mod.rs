@@ -41,9 +41,11 @@ pub struct EvmContract {
     pub code_size: u32,
 
     /// TODO: Neon uses RefMut for this, as in the below line - why? \ 
+    /// It's probably important somewhere else in the code, so it's likely this will have to be changed to
+    /// the same implementation. I just couldn't figure out to get the RefMut<[u8]> type to be serde 
+    /// serializable so I just said fuck it for now.\ 
     /// pub code: RefMut<'a, [u8]>,
     pub code: Vec<u8>,
-    
     
     /// TODO: Neon uses RefMut for this, as in the below line - why? \ 
     /// pub valids: RefMut<'a, [u8]>,
