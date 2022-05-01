@@ -1,4 +1,5 @@
 mod backend;
+mod base;
 
 use std::{collections::{BTreeMap, BTreeSet}, cell::RefCell};
 
@@ -25,14 +26,16 @@ enum Account {
 /// At the successful completion of a transaction, the Executor takes the produced ExecutorState, which holds the last produced ExecutorSubstate
 ///  are then applied to the actual stored EVM state through this interface.
 pub struct CwStorageInterface<'a> {
-    /// The NOVA cw20 token mint address
-    token_mint: Addr,
+    /// Gives write access to Cosmasm storage
+    cw_deps: DepsMut<'a>,
 
     /// Cosmwasm environment\ 
     /// Gives access to block info, as well as chainid (can we just use this for chainid needed by StorageInterface?)\ 
     /// Maybe the cw env chain_id should be separate from Terranova EVM chain ID,
     cw_env: Env,
-    cw_deps: DepsMut<'a>,
+
+    /// The NOVA cw20 token mint address
+    token_mint: Addr,
 
     ///
     /// In Neon, Account is an enum, either account(EvmAccount), contract(ethaccount, ethcontract)

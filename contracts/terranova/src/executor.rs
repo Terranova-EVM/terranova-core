@@ -1,11 +1,17 @@
 use std::convert::Infallible;
 
-use evm::{H160, U256, Handler, ExitError, H256, ExitReason, Capture, Valids, ExitFatal};
-use evm_runtime::{CONFIG, Control, save_created_address, save_return_value};
-use serde::{Serialize, Deserialize};
+use evm::{Capture, ExitError, ExitFatal, ExitReason, Handler, Valids, H160, H256, U256};
+use evm_runtime::{save_created_address, save_return_value, Control, CONFIG};
+use serde::{Deserialize, Serialize};
 
-use crate::{storage::StorageInterface, executor_state::{ExecutorState, ExecutorSubstate}, utils::{keccak256_h256, keccak256_h256_v}, gasometer::Gasometer, ContractError};
 use crate::{emit_exit, event};
+use crate::{
+    executor_state::{ExecutorState, ExecutorSubstate},
+    gasometer::Gasometer,
+    storage::StorageInterface,
+    utils::{keccak256_h256, keccak256_h256_v},
+    ContractError,
+};
 
 fn emit_exit<E: Into<ExitReason> + Copy>(error: E) -> E {
     emit_exit!(error)
@@ -29,7 +35,7 @@ struct CreateInterrupt {
 }
 
 #[derive(Debug)]
-enum RuntimeApply{
+enum RuntimeApply {
     Continue,
     Call(CallInterrupt),
     Create(CreateInterrupt),
@@ -45,23 +51,22 @@ struct Executor<'a, B: StorageInterface> {
 impl<'a, B: StorageInterface> Executor<'a, B> {
     fn create_address(&self, scheme: evm::CreateScheme) -> H160 {
         match scheme {
-            evm::CreateScheme::Create2 { caller, code_hash, salt } => {
-                keccak256_h256_v(&[&[0xff], &caller[..], &salt[..], &code_hash[..]]).into()
-            },
+            evm::CreateScheme::Create2 {
+                caller,
+                code_hash,
+                salt,
+            } => keccak256_h256_v(&[&[0xff], &caller[..], &salt[..], &code_hash[..]]).into(),
             evm::CreateScheme::Legacy { caller } => {
                 let nonce = self.state.nonce(caller);
                 let mut stream = rlp::RlpStream::new_list(2);
                 stream.append(&caller);
                 stream.append(&nonce);
                 keccak256_h256(&stream.out()).into()
-            },
-            evm::CreateScheme::Fixed(naddress) => {
-                naddress
-            },
+            }
+            evm::CreateScheme::Fixed(naddress) => naddress,
         }
     }
 }
-
 
 impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
     type CreateInterrupt = crate::executor::CreateInterrupt;
@@ -102,7 +107,9 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
     }
 
     fn original_storage(&self, address: H160, index: U256) -> U256 {
-        self.state.original_storage(address, index).unwrap_or_default()
+        self.state
+            .original_storage(address, index)
+            .unwrap_or_default()
     }
 
     fn gas_left(&self) -> U256 {
@@ -150,7 +157,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
         // if is_precompile_address(&address) {
         //     return true;
         // }
-        
+
         if CONFIG.empty_considered_exists {
             self.state.exists(address)
         } else {
@@ -167,7 +174,8 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
             return Err(ExitError::StaticModeViolation);
         }
 
-        self.gasometer.record_storage_write(&self.state, address, index);
+        self.gasometer
+            .record_storage_write(&self.state, address, index);
 
         self.state.set_storage(address, index, value);
         Ok(())
@@ -212,7 +220,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
         debug_print!("create");
 
         if self.state.metadata().is_static() {
-            return Capture::Exit((ExitError::StaticModeViolation.into(), None, Vec::new()))
+            return Capture::Exit((ExitError::StaticModeViolation.into(), None, Vec::new()));
         }
 
         if let Some(depth) = self.state.metadata().depth() {
@@ -222,7 +230,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
         }
 
         if !value.is_zero() && (self.balance(caller) < value) {
-            return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
+            return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
         }
 
         // Get the create address from given scheme.
@@ -237,18 +245,17 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
             target_gas,
         });
 
-
         // TODO: may be increment caller's nonce after runtime creation or success execution?
         self.state.inc_nonce(caller);
 
         let existing_code = self.state.code(address);
         if !existing_code.is_empty() {
             // let _ = self.merge_fail(substate);
-            return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+            return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
         }
 
-        if self.state.nonce(address)  > U256::zero() {
-            return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+        if self.state.nonce(address) > U256::zero() {
+            return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
         }
 
         let context = evm::Context {
@@ -257,9 +264,18 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
             apparent_value: value,
         };
 
-        let transfer = Some(evm::Transfer { source: caller, target: address, value });
+        let transfer = Some(evm::Transfer {
+            source: caller,
+            target: address,
+            value,
+        });
 
-        Capture::Trap(CreateInterrupt{context, transfer, address, init_code})
+        Capture::Trap(CreateInterrupt {
+            context,
+            transfer,
+            address,
+            init_code,
+        })
     }
 
     /// TODO: Go back to this when precompile addresses are implemented
@@ -284,7 +300,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
         debug_print!("call");
 
         if (self.state.metadata().is_static() || is_static) && transfer.is_some() {
-            return Capture::Exit((ExitError::StaticModeViolation.into(), Vec::new()))
+            return Capture::Exit((ExitError::StaticModeViolation.into(), Vec::new()));
         }
 
         // TODO: Come back here once precompile addresses are implemented
@@ -299,7 +315,13 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
             }
         }
 
-        Capture::Trap(CallInterrupt{context, transfer, code_address, input, is_static})
+        Capture::Trap(CallInterrupt {
+            context,
+            transfer,
+            code_address,
+            input,
+            is_static,
+        })
     }
 
     fn pre_validate(
@@ -333,13 +355,21 @@ pub struct Machine<'a, B: StorageInterface> {
 
 impl<'a, B: StorageInterface> Machine<'a, B> {
     /// Creates instance of the Machine.
-    pub fn new(origin: H160, backend: &'a B) -> Self {
+    pub fn new(origin: H160, backend: &'a B) -> Result<Self, ContractError> {
         let substate = Box::new(ExecutorSubstate::new(backend));
         let state = ExecutorState::new(substate, backend);
         let gasometer = Gasometer::new();
-        
-        let executor = Executor { origin, state, gasometer };
-        Self { executor, runtime: Vec::new(), steps_executed: 0 }
+
+        let executor = Executor {
+            origin,
+            state,
+            gasometer,
+        };
+        Ok(Self {
+            executor,
+            runtime: Vec::new(),
+            steps_executed: 0,
+        })
     }
 
     // /// Serializes and saves state of runtime and executor into a storage account.
@@ -369,14 +399,15 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
     ///
     /// May return following errors:
     /// - `InsufficientFunds` if the caller lacks funds for the operation
-    pub fn call_begin(&mut self,
+    pub fn call_begin(
+        &mut self,
         caller: H160,
         code_address: H160,
         input: Vec<u8>,
         transfer_value: U256,
-        #[allow(unused_variables)] gas_limit: U256
+        #[allow(unused_variables)] gas_limit: U256,
     ) -> Result<(), ContractError> {
-	    event!(TransactCall {
+        event!(TransactCall {
             caller,
             address: code_address,
             value: transfer_value,
@@ -389,16 +420,28 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         self.executor.state.enter(false);
         self.executor.state.touch(code_address);
 
-        self.executor.gasometer.record_transfer(&self.executor.state, code_address, transfer_value);
+        self.executor
+            .gasometer
+            .record_transfer(&self.executor.state, code_address, transfer_value);
 
-        let transfer = evm::Transfer { source: caller, target: code_address, value: transfer_value };
-        self.executor.state.transfer(&transfer)
+        let transfer = evm::Transfer {
+            source: caller,
+            target: code_address,
+            value: transfer_value,
+        };
+        self.executor
+            .state
+            .transfer(&transfer)
             .map_err(emit_exit)
             .map_err(|e| E!(ContractError::InsufficientFunds; "ExitError={:?}", e))?;
 
         let code = self.executor.code(code_address);
         let valids = self.executor.valids(code_address);
-        let context = evm::Context{ address: code_address, caller, apparent_value: transfer_value };
+        let context = evm::Context {
+            address: code_address,
+            caller,
+            apparent_value: transfer_value,
+        };
 
         let runtime = evm::Runtime::new(code, valids, input, context);
 
@@ -413,29 +456,35 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
     ///
     /// May return following errors:
     /// - `InsufficientFunds` if the caller lacks funds for the operation
-    pub fn create_begin(&mut self,
-                        caller: H160,
-                        code: Vec<u8>,
-                        transfer_value: U256,
-                        #[allow(unused_variables)] gas_limit: U256,
+    pub fn create_begin(
+        &mut self,
+        caller: H160,
+        code: Vec<u8>,
+        transfer_value: U256,
+        #[allow(unused_variables)] gas_limit: U256,
     ) -> Result<(), ContractError> {
         event!(TransactCreate {
             caller,
             value: transfer_value,
             init_code: &code,
             gas_limit,
-            address: self.executor.create_address(evm::CreateScheme::Legacy { caller }),
+            address: self
+                .executor
+                .create_address(evm::CreateScheme::Legacy { caller }),
         });
 
         debug_print!("create_begin");
 
         let scheme = evm::CreateScheme::Legacy { caller };
 
-        match self.executor.create(caller, scheme, transfer_value, code, None) {
+        match self
+            .executor
+            .create(caller, scheme, transfer_value, code, None)
+        {
             Capture::Exit((reason, addr, value)) => {
                 let (value, reason) = emit_exit!(value, reason);
                 return Err!(ContractError::ContractCreationFailed; "create_begin() error={:?} ", (reason, addr, value));
-            },
+            }
             Capture::Trap(info) => {
                 self.executor.state.enter(false);
 
@@ -445,24 +494,24 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
                     self.executor.state.inc_nonce(info.address);
                 }
 
-                self.executor.gasometer.record_deploy(&self.executor.state, info.address);
+                self.executor
+                    .gasometer
+                    .record_deploy(&self.executor.state, info.address);
 
                 if let Some(transfer) = info.transfer {
-                    self.executor.state.transfer(&transfer)
+                    self.executor
+                        .state
+                        .transfer(&transfer)
                         .map_err(emit_exit)
                         .map_err(|e| E!(ContractError::InsufficientFunds; "ExitError={:?}", e))?;
                 }
 
                 let valids = Valids::compute(&info.init_code);
-                let instance = evm::Runtime::new(
-                    info.init_code,
-                    valids,
-                    Vec::new(),
-                    info.context,
-                );
+                let instance = evm::Runtime::new(info.init_code, valids, Vec::new(), info.context);
 
-                self.runtime.push((instance, CreateReason::Create(info.address)));
-            },
+                self.runtime
+                    .push((instance, CreateReason::Create(info.address)));
+            }
         }
 
         Ok(())
@@ -472,30 +521,30 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
     fn run(&mut self, max_steps: u64) -> (u64, RuntimeApply) {
         let runtime = match self.runtime.last_mut() {
             Some((runtime, _)) => runtime,
-            None => return (0, RuntimeApply::Exit(ExitFatal::NotSupported.into()))
+            None => return (0, RuntimeApply::Exit(ExitFatal::NotSupported.into())),
         };
 
         let mut steps_executed = 0;
         loop {
             if steps_executed >= max_steps {
-                    return (steps_executed, RuntimeApply::Continue);
+                return (steps_executed, RuntimeApply::Continue);
             }
             if let Err(capture) = runtime.step(&mut self.executor) {
                 return match capture {
-                    Capture::Exit(ExitReason::StepLimitReached) => (steps_executed, RuntimeApply::Continue),
-                    Capture::Exit(reason) => (steps_executed, RuntimeApply::Exit(reason)),
-                    Capture::Trap(interrupt) => {
-                        match interrupt {
-                            Resolve::Call(interrupt, resolve) => {
-                                mem::forget(resolve);
-                                (steps_executed, RuntimeApply::Call(interrupt))
-                            },
-                            Resolve::Create(interrupt, resolve) => {
-                                mem::forget(resolve);
-                                (steps_executed, RuntimeApply::Create(interrupt))
-                            },
-                        }
+                    Capture::Exit(ExitReason::StepLimitReached) => {
+                        (steps_executed, RuntimeApply::Continue)
                     }
+                    Capture::Exit(reason) => (steps_executed, RuntimeApply::Exit(reason)),
+                    Capture::Trap(interrupt) => match interrupt {
+                        Resolve::Call(interrupt, resolve) => {
+                            mem::forget(resolve);
+                            (steps_executed, RuntimeApply::Call(interrupt))
+                        }
+                        Resolve::Create(interrupt, resolve) => {
+                            mem::forget(resolve);
+                            (steps_executed, RuntimeApply::Create(interrupt))
+                        }
+                    },
                 };
             }
             steps_executed += 1;
@@ -510,25 +559,23 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
         let runtime = match self.runtime.last_mut() {
             Some((runtime, _)) => runtime,
-            None => return (0, RuntimeApply::Exit(ExitFatal::NotSupported.into()))
+            None => return (0, RuntimeApply::Exit(ExitFatal::NotSupported.into())),
         };
 
         let (steps_executed, capture) = runtime.run(max_steps, &mut self.executor);
         match capture {
             Capture::Exit(ExitReason::StepLimitReached) => (steps_executed, RuntimeApply::Continue),
             Capture::Exit(reason) => (steps_executed, RuntimeApply::Exit(reason)),
-            Capture::Trap(interrupt) => {
-                match interrupt {
-                    Resolve::Call(interrupt, resolve) => {
-                        mem::forget(resolve);
-                        (steps_executed, RuntimeApply::Call(interrupt))
-                    },
-                    Resolve::Create(interrupt, resolve) => {
-                        mem::forget(resolve);
-                        (steps_executed, RuntimeApply::Create(interrupt))
-                    },
+            Capture::Trap(interrupt) => match interrupt {
+                Resolve::Call(interrupt, resolve) => {
+                    mem::forget(resolve);
+                    (steps_executed, RuntimeApply::Call(interrupt))
                 }
-            }
+                Resolve::Create(interrupt, resolve) => {
+                    mem::forget(resolve);
+                    (steps_executed, RuntimeApply::Create(interrupt))
+                }
+            },
         }
     }
 
@@ -541,16 +588,18 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         self.executor.state.touch(interrupt.code_address);
 
         if let Some(transfer) = interrupt.transfer {
-            self.executor.gasometer.record_transfer(&self.executor.state, interrupt.code_address, transfer.value);
-            self.executor.state.transfer(&transfer).map_err(|_| (Vec::new(), ExitError::OutOfFund.into()))?;
+            self.executor.gasometer.record_transfer(
+                &self.executor.state,
+                interrupt.code_address,
+                transfer.value,
+            );
+            self.executor
+                .state
+                .transfer(&transfer)
+                .map_err(|_| (Vec::new(), ExitError::OutOfFund.into()))?;
         }
 
-        let instance = evm::Runtime::new(
-            code,
-            valids,
-            interrupt.input,
-            interrupt.context,
-        );
+        let instance = evm::Runtime::new(code, valids, interrupt.input, interrupt.context);
         self.runtime.push((instance, CreateReason::Call));
 
         Ok(())
@@ -558,36 +607,45 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
     fn apply_create(&mut self, interrupt: CreateInterrupt) -> Result<(), (Vec<u8>, ExitReason)> {
         debug_print!("apply_create {:?}", interrupt);
-        self.executor.state.enter( false);
+        self.executor.state.enter(false);
         self.executor.state.touch(interrupt.address);
         self.executor.state.reset_storage(interrupt.address);
         if CONFIG.create_increase_nonce {
             self.executor.state.inc_nonce(interrupt.address);
         }
 
-        self.executor.gasometer.record_deploy(&self.executor.state, interrupt.address);
+        self.executor
+            .gasometer
+            .record_deploy(&self.executor.state, interrupt.address);
 
         if let Some(transfer) = interrupt.transfer {
-            self.executor.state.transfer(&transfer).map_err(|_| (Vec::new(), ExitError::OutOfFund.into()))?;
+            self.executor
+                .state
+                .transfer(&transfer)
+                .map_err(|_| (Vec::new(), ExitError::OutOfFund.into()))?;
         }
 
         let valids = Valids::compute(&interrupt.init_code);
-        let instance = evm::Runtime::new(
-            interrupt.init_code,
-            valids,
-            Vec::new(),
-            interrupt.context,
-        );
-        self.runtime.push((instance, CreateReason::Create(interrupt.address)));
+        let instance =
+            evm::Runtime::new(interrupt.init_code, valids, Vec::new(), interrupt.context);
+        self.runtime
+            .push((instance, CreateReason::Create(interrupt.address)));
 
         Ok(())
     }
 
-    fn apply_exit_call(&mut self, exited_runtime: &evm::Runtime, reason: ExitReason) -> Result<(), (Vec<u8>, ExitReason)> {
+    fn apply_exit_call(
+        &mut self,
+        exited_runtime: &evm::Runtime,
+        reason: ExitReason,
+    ) -> Result<(), (Vec<u8>, ExitReason)> {
         if reason.is_succeed() {
-            self.executor.state.exit_commit().map_err(|e| (Vec::new(), ExitReason::from(e)))?;
+            self.executor
+                .state
+                .exit_commit()
+                .map_err(|e| (Vec::new(), ExitReason::from(e)))?;
         }
-        
+
         let return_value = exited_runtime.machine().return_value();
         if self.runtime.is_empty() {
             return Err((return_value, reason));
@@ -598,20 +656,30 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         match save_return_value(runtime, reason, return_value, &self.executor) {
             Control::Continue => Ok(()),
             Control::Exit(reason) => Err((Vec::new(), reason)),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
-    fn apply_exit_create(&mut self, exited_runtime: &evm::Runtime, mut reason: ExitReason, address: H160) -> Result<(), (Vec<u8>, ExitReason)> {
-
+    fn apply_exit_create(
+        &mut self,
+        exited_runtime: &evm::Runtime,
+        mut reason: ExitReason,
+        address: H160,
+    ) -> Result<(), (Vec<u8>, ExitReason)> {
         if reason.is_succeed() {
             match CONFIG.create_contract_limit {
                 Some(limit) if exited_runtime.machine().return_value_len() > limit => {
-                    self.executor.state.exit_discard().map_err(|e| (Vec::new(), ExitReason::from(e)))?;
+                    self.executor
+                        .state
+                        .exit_discard()
+                        .map_err(|e| (Vec::new(), ExitReason::from(e)))?;
                     reason = ExitError::CreateContractLimit.into();
-                },
+                }
                 _ => {
-                    self.executor.state.exit_commit().map_err(|e| (Vec::new(), ExitReason::from(e)))?;
+                    self.executor
+                        .state
+                        .exit_commit()
+                        .map_err(|e| (Vec::new(), ExitReason::from(e)))?;
                     let return_value = exited_runtime.machine().return_value();
                     self.executor.state.set_code(address, return_value);
                 }
@@ -620,26 +688,28 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
         let runtime = match self.runtime.last_mut() {
             Some((runtime, _)) => runtime,
-            None => return match reason {
-                ExitReason::Revert(_) => {
-                    let return_value = exited_runtime.machine().return_value();
-                    Err((return_value, reason))
-                },
-                _ => Err((Vec::<u8>::new(), reason))
+            None => {
+                return match reason {
+                    ExitReason::Revert(_) => {
+                        let return_value = exited_runtime.machine().return_value();
+                        Err((return_value, reason))
+                    }
+                    _ => Err((Vec::<u8>::new(), reason)),
+                }
             }
         };
 
         match save_created_address(runtime, reason, Some(address), &self.executor) {
             Control::Continue => Ok(()),
             Control::Exit(reason) => Err((Vec::new(), reason)),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
     fn apply_exit(&mut self, reason: ExitReason) -> Result<(), (Vec<u8>, ExitReason)> {
         let (exited_runtime, create_reason) = match self.runtime.pop() {
             Some((runtime, reason)) => (runtime, reason),
-            None => return Err((Vec::new(), ExitFatal::NotSupported.into()))
+            None => return Err((Vec::new(), ExitFatal::NotSupported.into())),
         };
 
         emit_exit!(exited_runtime.machine().return_value(), reason);
@@ -648,12 +718,15 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
             ExitReason::Succeed(_) => Ok(()),
             ExitReason::Revert(_) => self.executor.state.exit_revert(),
             ExitReason::Error(_) | ExitReason::Fatal(_) => self.executor.state.exit_discard(),
-            ExitReason::StepLimitReached => unreachable!()
-        }.map_err(|e| (exited_runtime.machine().return_value(), ExitReason::from(e)))?;
+            ExitReason::StepLimitReached => unreachable!(),
+        }
+        .map_err(|e| (exited_runtime.machine().return_value(), ExitReason::from(e)))?;
 
         match create_reason {
             CreateReason::Call => self.apply_exit_call(&exited_runtime, reason),
-            CreateReason::Create(address) => self.apply_exit_create(&exited_runtime, reason, address)
+            CreateReason::Create(address) => {
+                self.apply_exit_create(&exited_runtime, reason, address)
+            }
         }
     }
 

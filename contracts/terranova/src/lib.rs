@@ -12,8 +12,9 @@ pub mod executor;
 pub mod utils;
 pub mod gasometer;
 pub mod transaction;
+pub mod config;
 
-pub use crate::error::ContractError;
+pub use crate::error::{ContractError};
 
 #[cfg(feature = "tracing")]
 pub mod tracing;
