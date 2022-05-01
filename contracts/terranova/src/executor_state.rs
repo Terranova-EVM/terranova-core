@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::{BTreeMap, BTreeSet}, mem};
 use evm::{Transfer, H160, backend::{Log, Apply}, U256, H256, ExitError, Valids};
 use serde::{Serialize, Deserialize};
 
-use crate::storage::StorageInterface;
+use crate::{storage::StorageInterface};
 
 /// TODO: Document this
 /// Each of these structs is tied to an EVM H160 address in the accounts field of ExecutorSubstate
@@ -787,4 +787,402 @@ impl ExecutorSubstate {
 pub struct ExecutorState<'a, B: StorageInterface> {
     backend: &'a B,
     substate: Box<ExecutorSubstate>,
+}
+
+impl<'a, B: StorageInterface> ExecutorState<'a, B> {
+    #[must_use]
+    #[allow(clippy::unused_self)]
+    pub fn block_hash(&self, number: U256) -> H256 {
+        self.substate.block_hash(number, self.backend)
+    }
+
+    #[must_use]
+    pub fn block_number(&self) -> U256 {
+        *self.substate.metadata().block_number()
+    }
+
+    #[must_use]
+    #[allow(clippy::unused_self)]
+    pub fn block_coinbase(&self) -> H160 {
+        H160::default()
+    }
+
+    #[must_use]
+    pub fn block_timestamp(&self) -> U256 {
+        *self.substate.metadata().block_timestamp()
+    }
+
+    #[must_use]
+    #[allow(clippy::unused_self)]
+    pub fn block_difficulty(&self) -> U256 {
+        U256::zero()
+    }
+
+    #[must_use]
+    #[allow(clippy::unused_self)]
+    pub fn block_gas_limit(&self) -> U256 {
+        U256::from(u64::MAX)
+    }
+
+    #[must_use]
+    #[allow(clippy::unused_self)]
+    pub fn chain_id(&self) -> U256 {
+        U256::from(self.backend.chain_id())
+    }
+
+    #[must_use]
+    pub fn exists(&self, address: H160) -> bool {
+        self.substate.known_account(address).is_some() || self.backend.exists(&address)
+    }
+
+    #[must_use]
+    pub fn nonce(&self, address: H160) -> U256 {
+        self.substate
+            .known_nonce(address)
+            .unwrap_or_else(|| self.backend.nonce(&address))
+    }
+
+    #[must_use]
+    pub fn balance(&self, address: H160) -> U256 {
+        self.substate.balance(&address, self.backend)
+    }
+
+    #[must_use]
+    pub fn code(&self, address: H160) -> Vec<u8> {
+        self.substate
+            .known_code(address)
+            .unwrap_or_else(|| self.backend.code(&address))
+    }
+
+    #[must_use]
+    pub fn code_hash(&self, address: H160) -> H256 {
+        self.substate.known_code(address)
+            .map_or_else(|| self.backend.code_hash(&address), |code| crate::utils::keccak256_h256(&code))
+    }
+
+    #[must_use]
+    pub fn code_size(&self, address: H160) -> usize {
+         self.substate.known_code(address)
+            .map_or_else(|| self.backend.code_size(&address), |code| code.len())
+    }
+
+    #[must_use]
+    pub fn valids(&self, address: H160) -> Vec<u8> {
+        self.substate
+            .known_valids(address)
+            .unwrap_or_else(|| self.backend.valids(&address))
+    }
+
+    #[must_use]
+    pub fn storage(&self, address: H160, key: U256) -> U256 {
+        self.substate
+            .known_storage(address, key)
+            .unwrap_or_else(|| self.backend.storage(&address, &key))
+    }
+
+    #[must_use]
+    pub fn metadata(&self) -> &ExecutorMetadata {
+        self.substate.metadata()
+    }
+
+    #[must_use]
+    pub fn metadata_mut(&mut self) -> &mut ExecutorMetadata {
+        self.substate.metadata_mut()
+    }
+
+    pub fn enter(&mut self, is_static: bool) {
+        self.substate.enter(is_static);
+    }
+
+    pub fn exit_commit(&mut self) -> Result<(), ExitError> {
+        self.substate.exit_commit()
+    }
+
+    pub fn exit_revert(&mut self) -> Result<(), ExitError> {
+        self.substate.exit_revert()
+    }
+
+    pub fn exit_discard(&mut self) -> Result<(), ExitError> {
+        self.substate.exit_discard()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self, address: H160) -> bool {
+        if let Some(known_empty) = self.substate.known_empty(address) {
+            return known_empty;
+        }
+
+        self.backend.balance(&address) == U256::zero()
+            && self.backend.nonce(&address) == U256::zero()
+            && self.backend.code_size(&address) == 0
+    }
+
+    #[must_use]
+    pub fn deleted(&self, address: H160) -> bool {
+        self.substate.deleted(address)
+    }
+
+    pub fn inc_nonce(&mut self, address: H160) {
+        self.substate.inc_nonce(address, self.backend);
+    }
+
+    pub fn set_storage(&mut self, address: H160, key: U256, value: U256) {
+        self.substate.set_storage(address, key, value);
+    }
+
+    pub fn reset_storage(&mut self, address: H160) {
+        self.substate.reset_storage(address, self.backend);
+    }
+
+    #[must_use]
+    pub fn original_storage(&self, address: H160, key: U256) -> Option<U256> {
+        if let Some(value) = self.substate.known_original_storage(address, key) {
+            return Some(value);
+        }
+
+        Some(self.backend.storage(&address, &key)) // todo backend.original_storage
+    }
+
+    pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+        self.substate.log(address, topics, data);
+    }
+
+    pub fn set_deleted(&mut self, address: H160) {
+        self.substate.set_deleted(address);
+    }
+
+    pub fn set_code(&mut self, address: H160, code: Vec<u8>) {
+        self.substate.set_code(address, code, self.backend);
+    }
+
+    pub fn transfer(&mut self, transfer: &Transfer) -> Result<(), ExitError> {
+        debug_print!("executor transfer from={} to={} value={}", transfer.source, transfer.target, transfer.value);
+        if transfer.value.is_zero() {
+            return Ok(())
+        }
+
+        self.substate.transfer(transfer, self.backend)
+    }
+
+    pub fn reset_balance(&mut self, address: H160) {
+        self.substate.reset_balance(address);
+    }
+
+    pub fn touch(&mut self, address: H160) {
+        self.substate.touch(address, self.backend);
+    }
+    /*
+    #[must_use]
+    pub fn erc20_decimals(&self, mint: Pubkey) -> u8
+    {
+        self.substate.spl_decimals(&mint, self.backend)
+    }
+
+    #[must_use]
+    pub fn erc20_total_supply(&self, mint: Pubkey) -> U256
+    {
+        let supply = self.substate.spl_supply(&mint, self.backend);
+        U256::from(supply)
+    }
+
+    /// Returns the account balance of another account with `address`.
+    /// Returns zero if the account is not yet known.
+    #[must_use]
+    pub fn erc20_balance_of(&self, mint: Pubkey, context: &evm::Context, address: H160) -> U256
+    {
+        let (token_account, _) = self.backend.get_erc20_token_address(&address, &context.address, &mint);
+
+        let balance = self.substate.spl_balance(&token_account, self.backend);
+        U256::from(balance)
+    }
+
+    fn erc20_emit_transfer_event(&mut self, contract: H160, source: H160, target: H160, value: u64) {
+        // event Transfer(address indexed from, address indexed to, uint256 value);
+
+        let topics = vec![
+            H256::from_str("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef").unwrap(),
+            H256::from(source),
+            H256::from(target)
+        ];
+
+        let mut data = vec![0_u8; 32];
+        U256::from(value).into_big_endian_fast(&mut data);
+
+        self.log(contract, topics, data);
+    }
+
+    #[must_use]
+    fn erc20_transfer_impl(&mut self, mint: Pubkey, contract: H160, source: H160, target: H160, value: U256) -> bool
+    {
+        if value > U256::from(u64::MAX) {
+            return false;
+        }
+        let value = value.as_u64();
+
+        let (source_token, _) = self.backend.get_erc20_token_address(&source, &contract, &mint);
+        let (target_token, _) = self.backend.get_erc20_token_address(&target, &contract, &mint);
+
+        let transfer = SplTransfer { source, target, contract, mint, source_token, target_token, value };
+        if self.substate.spl_transfer(transfer, self.backend).is_err() {
+            return false;
+        }
+
+        self.erc20_emit_transfer_event(contract, source, target, value);
+
+        true
+    }
+
+    #[must_use]
+    pub fn erc20_transfer(&mut self, mint: Pubkey, context: &evm::Context, target: H160, value: U256) -> bool
+    {
+        self.erc20_transfer_impl(mint, context.address, context.caller, target, value)
+    }
+
+    #[must_use]
+    pub fn erc20_transfer_from(&mut self, mint: Pubkey, context: &evm::Context, source: H160, target: H160, value: U256) -> bool
+    {
+        let contract = context.address;
+
+        {
+            let allowance = self.substate.erc20_allowance(source, context.caller, contract, mint, self.backend);
+            if allowance < value {
+                return false;
+            }
+
+            let approve = ERC20Approve { owner: source, spender: context.caller, contract, mint, value: allowance - value };
+            self.substate.erc20_approve(&approve);
+        }
+
+        self.erc20_transfer_impl(mint, contract, source, target, value)
+    }
+
+    fn erc20_emit_approval_event(&mut self, contract: H160, owner: H160, spender: H160, value: U256) {
+        // event Approval(address indexed owner, address indexed spender, uint256 value);
+
+        let topics = vec![
+            H256::from_str("8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925").unwrap(),
+            H256::from(owner),
+            H256::from(spender)
+        ];
+
+        let mut data = vec![0_u8; 32];
+        value.into_big_endian_fast(&mut data);
+
+        self.log(contract, topics, data);
+    }
+
+    pub fn erc20_approve(&mut self, mint: Pubkey, context: &evm::Context, spender: H160, value: U256)
+    {
+        let contract = context.address;
+        let owner = context.caller;
+
+        let approve = ERC20Approve { owner, spender, contract, mint, value };
+        self.substate.erc20_approve(&approve);
+
+        self.erc20_emit_approval_event(context.address, owner, spender, value);
+    }
+
+    #[must_use]
+    pub fn erc20_allowance(&self, mint: Pubkey, context: &evm::Context, owner: H160, spender: H160) -> U256
+    {
+        let contract = context.address;
+
+        self.substate.erc20_allowance(owner, spender, contract, mint, self.backend)
+    }
+
+    fn erc20_emit_approval_solana_event(&mut self, contract: H160, owner: H160, spender: Pubkey, value: u64) {
+        // event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 value);
+
+        let topics = vec![
+            H256::from_str("f2d0a01e4c49f3439199c8f8950e366e85c4d1bd845552f6da1009b3bb2c1a70").unwrap(),
+            H256::from(owner),
+            H256::from(spender.to_bytes())
+        ];
+
+        let mut data = vec![0_u8; 32];
+        U256::from(value).into_big_endian_fast(&mut data);
+
+        self.log(contract, topics, data);
+    }
+
+    pub fn erc20_approve_solana(&mut self, mint: Pubkey, context: &evm::Context, spender: Pubkey, value: u64)
+    {
+        let contract = context.address;
+        let owner = context.caller;
+
+        let approve = SplApprove { owner, spender, contract, mint, value };
+        self.substate.spl_approve(approve);
+
+        self.erc20_emit_approval_solana_event(context.address, owner, spender, value);
+    }
+
+    pub fn cache_solana_account(&mut self, address: Pubkey, offset: usize, length: usize) -> query::Result<()> {
+        if length == 0 || length > query::MAX_CHUNK_LEN {
+            return Err(query::Error::InvalidArgument);
+        }
+        let value = self.backend.query_account(&address, offset, length);
+        match value {
+            None => Err(query::Error::AccountNotFound),
+            Some(value) => {
+                if value.has_data() {
+                    self.substate.query_account_cache.put(address, value);
+                    Ok(())
+                } else {
+                    Err(query::Error::InvalidArgument)
+                }
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn query_solana_account(&self) -> &query::AccountCache {
+        &self.substate.query_account_cache
+    }
+
+    #[must_use]
+    pub fn withdraw(&mut self, source: H160, destination: Pubkey, neon_amount: U256, spl_amount: u64) -> bool {
+        let dest_neon_acct = get_associated_token_address(
+            &destination,
+            self.backend.token_mint()
+        );
+
+        let withdraw = Withdraw{
+            source,
+            dest: destination,
+            dest_neon: dest_neon_acct,
+            neon_amount,
+            spl_amount
+        };
+
+        if self.substate.withdraw(withdraw, self.backend).is_err() {
+            return false;
+        };
+
+        true
+    }
+    */
+    pub fn new(substate: Box<ExecutorSubstate>, backend: &'a B) -> Self {
+        Self { backend, substate }
+    }
+
+    /// Returns an immutable reference on the executor substate.
+    #[must_use]
+    pub fn substate(&self) -> &ExecutorSubstate {
+        &self.substate
+    }
+
+    /// Deconstructs the executor, returns state to be applied.
+    /// # Panics
+    /// Panics if the executor is not in the top-level substate.
+    #[must_use]
+    pub fn backend(&self) -> &'a B {
+        self.backend
+    }
+
+    #[must_use]
+    pub fn deconstruct(
+        self,
+    ) -> ApplyState {
+        self.substate.deconstruct(self.backend)
+    }
 }
