@@ -4,8 +4,6 @@ use evm::{U256, H160};
 
 use crate::{storage::StorageInterface, executor_state::ExecutorState, transaction::UnsignedTransaction};
 
-const LAMPORTS_PER_SIGNATURE: u64 = 5000;
-
 /// THIS IS A DUMMY TO MAKE FUNCTION CALLS WORK
 pub struct Gasometer {
     gas: u64,

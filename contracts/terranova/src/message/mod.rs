@@ -18,6 +18,3 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
 }
-
-pub mod account_create;
-pub mod transaction_execute_from_instruction;
