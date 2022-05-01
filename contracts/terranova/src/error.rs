@@ -11,6 +11,10 @@ pub enum ContractError {
 
     #[error("Contract creation failed")]
     ContractCreationFailed,
+
+    #[error("The unsigned transaction is invalid")]
+    InvalidTransactionData,
+
 }
 
 macro_rules! Err {
