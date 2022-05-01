@@ -44,13 +44,14 @@ pub struct EvmContract {
     /// pub code: RefMut<'a, [u8]>,
     pub code: Vec<u8>,
     
+    
     /// TODO: Neon uses RefMut for this, as in the below line - why? \ 
     /// pub valids: RefMut<'a, [u8]>,
     pub valids: Vec<u8>,
 
-    /// TODO: Think about the choice of data structure here
-    /// Neon has their own custom implementation of a HAMT for this 
-    /// Understand why they did this better - why was it necessary? (Quite possible specific to Solana)
-    /// For this proof-of-concept contract, I'm going to use this and just see if it works
+    /// TODO: Think about the choice of data structure here \ 
+    /// Neon has their own custom implementation of a HAMT for this:
+    /// Try to understand why they did this - why was it necessary? (specific to Solana? or no...)
+    /// For this proof-of-concept, I'm going to use this and just see if it works
     pub storage: BTreeMap<U256, U256>
 }

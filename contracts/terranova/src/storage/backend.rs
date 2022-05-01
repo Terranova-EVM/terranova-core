@@ -1,5 +1,7 @@
+use std::convert::TryInto;
+
 use cw_storage_plus::{Map};
-use evm::{H160, U256};
+use evm::{H160, U256, H256};
 
 use crate::account::{EvmAccount, EvmContract};
 use crate::storage::{CwStorageInterface, StorageInterface};
@@ -68,30 +70,64 @@ impl StorageInterface for CwStorageInterface<'_> {
             .into()
     }
 
-    fn balance(&self, address: &H160) -> evm::U256 {
+    fn balance(&self, address: &H160) -> U256 {
         ACCOUNTS
             .may_load(self.cw_deps.storage, address.as_bytes())
             .unwrap_or(None)
-            .map_or(U256::zero(), |acc| acc.balance)
+            .map_or_else(U256::zero, |acc| acc.balance)
     }
 
+    /// Possible performance consideration for this and code_hash/code/valids:
+    /// Is it better to check that this is a contract first in ACCOUNTS, or just use may_load
+    /// This method can panic, but only because of architecture related reasons, should (hopefully) be fine since
+    /// this is compiled to cosmwasm anyways.
     fn code_size(&self, address: &H160) -> usize {
-        todo!()
+        CONTRACTS
+            .may_load(self.cw_deps.storage, address.as_bytes())
+            .unwrap_or(None)
+            .map_or(0_u32, |contract| contract.code_size)
+            .try_into()
+            .expect("usize is 8 bytes")
     }
 
-    fn code_hash(&self, address: &H160) -> evm::H256 {
-        todo!()
+    /// THIS CURRENTLY USES A DUMMY HASHING FUNCTION, IT'S NOT REAL
+    /// TODO: Implement the hashing shit in utils.rs
+    /// TODO: Reimplement this when EvmContract.code type is changed to RefMut<[u8]>
+    fn code_hash(&self, address: &H160) -> H256 {
+        CONTRACTS
+            .may_load(self.cw_deps.storage, address.as_bytes())
+            .unwrap_or(None)
+            .map(|contract| contract.code)
+            .map_or_else(H256::zero, |code| {
+                crate::utils::keccak256_h256(code.as_slice())
+            })
     }
 
     fn code(&self, address: &H160) -> Vec<u8> {
-        todo!()
+        CONTRACTS
+            .may_load(self.cw_deps.storage, address.as_bytes())
+            .unwrap_or(None)
+            .map(|contract| contract.code)
+            .map_or_else(Vec::new, |code| code)
     }
 
+    /// TODO: Reimplement this when EvmContract.valids type is changed to RefMut<[u8]>
     fn valids(&self, address: &H160) -> Vec<u8> {
-        todo!()
+        CONTRACTS
+            .may_load(self.cw_deps.storage, address.as_bytes())
+            .unwrap_or(None)
+            .map_or_else(Vec::new, |contract| contract.valids)
     }
 
-    fn storage(&self, address: &H160, index: &evm::U256) -> evm::U256 {
-        todo!()
+    /// TODO: Reimplement this if/when contract.storage is refactored as a different data structure
+    fn storage(&self, address: &H160, index: &U256) -> U256 {
+        CONTRACTS
+            .may_load(self.cw_deps.storage, address.as_bytes())
+            .unwrap_or(None)
+            .map(|contract| contract.storage)
+            .and_then(|storage| {
+                storage.get(index).map(|value| *value)
+            })
+            .unwrap_or_else(U256::zero)
     }
 }

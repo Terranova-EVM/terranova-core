@@ -7,7 +7,7 @@ use evm::{H160, U256, H256};
 
 use crate::account::{EvmAccount, EvmContract};
 
-/// TODO: Figure out why EvmAccount in Neon has a lifetime specifier
+/// TODO: Figure out why EthereumAccount (EvmAccount) in Neon has a lifetime specifier
 /// 
 /// A thin enum wrapper for Ethereum 
 enum Account {
