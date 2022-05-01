@@ -20,7 +20,8 @@ pub const ACCOUNTS: Map<&[u8], EvmAccount> = Map::new("accounts");
 ///
 /// This map should not be accessed unless you first use the ACCOUNTS map to verify that the provided H160 address 
 /// is a contract account and thus is known to have an associated entry here. However, please still implement clean 
-/// Result and Option handling when using it.
+/// Result and Option handling when using it. <-- actually fk this nvm just directly keying in and just handling 
+/// the None value if it doesn't exist makes more sense
 /// 
 /// Key: an H160 address in the form of a byte array slice \ 
 /// Value: an EvmContract struct, see its documentation
