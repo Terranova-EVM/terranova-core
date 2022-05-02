@@ -29,7 +29,7 @@ pub fn validate() -> Result<(), ContractError> {
     Ok(())
 }
 
-pub fn execute(storage: CwStorageInterface, caller_address: H160, trx: UnsignedTransaction) -> Result<(), ContractError> {
+pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: UnsignedTransaction) -> Result<(), ContractError> {
     let (exit_reason, return_value, apply_state, used_gas) = {
         let mut executor = Machine::new(caller_address, &storage)?;
         executor.gasometer_mut().record_transaction_size(&trx);
@@ -70,8 +70,15 @@ pub fn execute(storage: CwStorageInterface, caller_address: H160, trx: UnsignedT
         }
     };
 
-    /// TODO: The resulting state changes in apply have to actually be applied to the CwStorageInterface
-    /// TODO: Implement state change application methods for CwStorageInterface
+    // TODO: Gas paayment and calculation
+
+    if let Some(apply_state) = apply_state {
+        storage.apply_state_change(apply_state)?;
+    } else {
+        // Transaction ended with error, no state to apply
+        // Increment nonce here. Normally it is incremented inside apply_state_change
+        storage.increment_nonce(&caller_address)?;
+    }
 
     Ok(())
 }

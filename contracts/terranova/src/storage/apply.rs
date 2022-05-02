@@ -39,6 +39,23 @@ impl<'a> CwStorageInterface<'a> {
         Ok(())
     }
 
+    /// Public method to increment account nonce
+    pub fn increment_nonce(&mut self, address: &H160) -> Result<(), ContractError> {
+        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+            self.init_new_account(address)?;
+        }
+
+        let mut account = ACCOUNTS.may_load(self.cw_deps.storage, address)?
+            .ok_or(StdError::NotFound { kind: "EvmAccount".to_string() })?;
+
+        account.trx_count = account.trx_count.checked_add(1)
+            .ok_or_else(|| E!(ContractError::NonceOverflow; "Account {} - nonce overflow", address))?;
+
+        ACCOUNTS.save(self.cw_deps.storage, address, &account)?;
+
+        Ok(())
+    }
+
     /// This could be either a user or contract account, however the same initialization state will be set for both 
     /// (with contract_storage_key set to None). Additional logic should be implemented after this to initialize
     /// the contract code and update this account's contract_storage_key field if the account is a contract account.
