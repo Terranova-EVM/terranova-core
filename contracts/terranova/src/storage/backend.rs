@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use cw_storage_plus::{Map};
+use cw_storage_plus::{Map, PrimaryKey};
 use evm::{H160, U256, H256};
 
 use crate::account::{EvmAccount, EvmContract};
@@ -12,7 +12,7 @@ use crate::storage::{CwStorageInterface, StorageInterface};
 /// 
 /// Key: an H160 address in the form of a byte array slice \ 
 /// Value: an EvmAccount struct, see its documentation
-pub const ACCOUNTS: Map<&[u8], EvmAccount> = Map::new("accounts");
+pub const ACCOUNTS: Map<&H160, EvmAccount> = Map::new("accounts");
 
 /// TODO: Implement PrimaryKey for evm::H160 so that it can be used directly as the key instead of having to convert it
 ///  
@@ -25,8 +25,9 @@ pub const ACCOUNTS: Map<&[u8], EvmAccount> = Map::new("accounts");
 /// 
 /// Key: an H160 address in the form of a byte array slice \ 
 /// Value: an EvmContract struct, see its documentation
-pub const CONTRACTS: Map<&[u8], EvmContract> = Map::new("contracts");
+pub const CONTRACTS: Map<&H160, EvmContract> = Map::new("contracts");
 
+/// Read from persistent EVM state state (after the most recent finalized transaction)
 impl StorageInterface for CwStorageInterface<'_> {
     fn token_mint(&self) -> &cosmwasm_std::Addr {
         &self.token_mint
@@ -59,13 +60,17 @@ impl StorageInterface for CwStorageInterface<'_> {
         todo!()
     }
 
+    /// What should "existing" mean? Probably just exists as a key entry in ACCOUNTS?
+    ///     e.g. has been used b4
+    /// tbh we could even just have this always return true and just insert a new entry into
+    /// evm_accounts if it's not there already
     fn exists(&self, address: &H160) -> bool {
-        ACCOUNTS.has(self.cw_deps.storage, address.as_bytes())
+        ACCOUNTS.has(self.cw_deps.storage, address)
     }
 
     fn nonce(&self, address: &H160) -> evm::U256 {
         ACCOUNTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map_or(0_u64, |acc| acc.trx_count)
             .into()
@@ -73,7 +78,7 @@ impl StorageInterface for CwStorageInterface<'_> {
 
     fn balance(&self, address: &H160) -> U256 {
         ACCOUNTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map_or_else(U256::zero, |acc| acc.balance)
     }
@@ -84,7 +89,7 @@ impl StorageInterface for CwStorageInterface<'_> {
     /// this is compiled to cosmwasm anyways.
     fn code_size(&self, address: &H160) -> usize {
         CONTRACTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map_or(0_u32, |contract| contract.code_size)
             .try_into()
@@ -96,7 +101,7 @@ impl StorageInterface for CwStorageInterface<'_> {
     /// TODO: Reimplement this when EvmContract.code type is changed to RefMut<[u8]>
     fn code_hash(&self, address: &H160) -> H256 {
         CONTRACTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map(|contract| contract.code)
             .map_or_else(H256::zero, |code| {
@@ -106,7 +111,7 @@ impl StorageInterface for CwStorageInterface<'_> {
 
     fn code(&self, address: &H160) -> Vec<u8> {
         CONTRACTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map(|contract| contract.code)
             .map_or_else(Vec::new, |code| code)
@@ -115,7 +120,7 @@ impl StorageInterface for CwStorageInterface<'_> {
     /// TODO: Reimplement this when EvmContract.valids type is changed to RefMut<[u8]>
     fn valids(&self, address: &H160) -> Vec<u8> {
         CONTRACTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map_or_else(Vec::new, |contract| contract.valids)
     }
@@ -123,7 +128,7 @@ impl StorageInterface for CwStorageInterface<'_> {
     /// TODO: Reimplement this if/when contract.storage is refactored as a different data structure
     fn storage(&self, address: &H160, index: &U256) -> U256 {
         CONTRACTS
-            .may_load(self.cw_deps.storage, address.as_bytes())
+            .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
             .map(|contract| contract.storage)
             .and_then(|storage| {
