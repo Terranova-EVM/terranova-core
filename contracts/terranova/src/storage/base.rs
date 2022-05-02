@@ -12,8 +12,8 @@ impl<'a> CwStorageInterface<'a> {
             cw_deps,
             cw_env,
             token_mint,
-            ethereum_accounts: BTreeMap::new(),
-            empty_ethereum_accounts: RefCell::new(BTreeSet::new()),
+            evm_accounts: BTreeMap::new(),
+            empty_evm_accounts: RefCell::new(BTreeSet::new()),
             chain_id,
         })
     }

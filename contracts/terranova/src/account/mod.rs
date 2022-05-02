@@ -31,6 +31,23 @@ pub struct EvmAccount {
     pub ro_blocked_count: u8,
 }
 
+impl EvmAccount {
+    /// Create an initialiized user account with the given address
+    /// NOTE: This is also used for instantiating contract accounts, even though the initial field for contract_storage_key is None
+    /// On contract deployments if this account exists as a user account the contract_storage_key should be changed 
+    pub fn new_user_account(address: H160) -> Self {
+        Self {
+            address,
+            bump_seed: 0_u8,
+            trx_count: 0_u64,
+            contract_storage_key: None,
+            balance: U256::zero(),
+            rw_blocked: false,
+            ro_blocked_count: 0_u8,
+        }
+    }
+}
+
 /// TODO: Document this, THE TYPE CHOICES FOR THIS ARE ALL REALLY LAZY, COME BACK TO THIS
 /// For every EvmAccount struct that is a contract account, there will be a corresponding EvmContract
 /// stored in the CONTRACTS map, with the same key, the account's H160 address, used. The H160 address is stored

@@ -1,5 +1,6 @@
 mod backend;
 mod base;
+mod apply;
 
 use std::{collections::{BTreeMap, BTreeSet}, cell::RefCell};
 
@@ -38,9 +39,13 @@ pub struct CwStorageInterface<'a> {
     token_mint: Addr,
 
     ///
-    /// In Neon, Account is an enum, either account(EvmAccount), contract(ethaccount, ethcontract)
-    ethereum_accounts: BTreeMap<H160, Account>,
-    empty_ethereum_accounts: RefCell<BTreeSet<H160>>,
+    /// Account is an enum, either account(EvmAccount), contract(ethaccount, ethcontract)
+    /// EVM accounts that have been touched so far during the course of a transaction
+    /// basically this is just a cache for us
+    evm_accounts: BTreeMap<H160, Account>,
+
+    /// Is there a point to this...?
+    empty_evm_accounts: RefCell<BTreeSet<H160>>,
 
     chain_id: u64, 
 }

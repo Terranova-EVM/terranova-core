@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::message;
+use crate::message::{self, transaction_execute_simple};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
@@ -24,7 +24,7 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -32,8 +32,9 @@ pub fn execute(
     // TODO: First check that the message sender is an operator
 
     match msg {
-        ExecuteMsg::CallFromRawEthereumTX { .. } => {
-            todo!()
+        ExecuteMsg::CallFromRawEthereumTX { caller_evm_address, unsigned_tx } => {
+            transaction_execute_simple::process(deps, env, caller_evm_address, unsigned_tx)?;
+            Ok(Response::new())
         }
         _ => panic!("Not implemented")
     }
@@ -62,5 +63,19 @@ mod tests {
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
+    }
+
+    /// TODO
+    fn simple_contract_deploy() {
+        let mut deps = mock_dependencies(&[]);
+
+        let msg = InstantiateMsg { };
+        let info = mock_info("creator", &coins(1000, "earth"));
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // TODO
+
     }
 }

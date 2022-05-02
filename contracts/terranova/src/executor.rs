@@ -68,6 +68,7 @@ impl<'a, B: StorageInterface> Executor<'a, B> {
     }
 }
 
+/// TODO: Precompile addresses
 impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
     type CreateInterrupt = crate::executor::CreateInterrupt;
     type CreateFeedback = Infallible;
@@ -245,7 +246,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
             target_gas,
         });
 
-        // TODO: may be increment caller's nonce after runtime creation or success execution?
+        /// TODO: may be increment caller's nonce after runtime creation or success execution?
         self.state.inc_nonce(caller);
 
         let existing_code = self.state.code(address);

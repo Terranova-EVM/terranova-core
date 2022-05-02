@@ -15,6 +15,11 @@ pub enum ContractError {
     #[error("The unsigned transaction is invalid")]
     InvalidTransactionData,
 
+    #[error("An account balance overflowed")]
+    BalanceOverflow,
+
+    #[error("An account nonce overflowed")]
+    NonceOverflow
 }
 
 macro_rules! Err {
