@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint256};
 use cw2::set_contract_version;
 use evm::H160;
 
@@ -54,7 +54,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use evm::{H160};
-    use crate::airdrop::airdrop_write_balance;
+    use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract};
 
     fn parse_hex(hex_asm: &str) -> Vec<u8> {
         let hex_asm = &hex_asm[2..];
@@ -128,8 +128,15 @@ mod tests {
         // TODO
         let sender_addr: H160 = parse_h160("0xd3CdA913deB6f67967B99D67aCDFa1712C293601");
 
-        println!("Sender addr: {:?}", sender_addr.to_string());
+        println!("Sender addr: {}", sender_addr);
 
         airdrop_write_balance(deps.as_mut(), mock_env(), sender_addr);
+
+        let contract_addr: H160 = parse_h160("0x402B964289Da03f1F26Bf1bAdDc1E34DA8468F9a");
+        let contract_code = parse_hex("0608");
+
+        println!("Contract addr: {}", contract_addr);
+
+        airdrop_deploy_contract(deps.as_mut(), mock_env(), sender_addr, contract_code);
     }
 }

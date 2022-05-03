@@ -9,3 +9,8 @@ pub fn airdrop_write_balance(deps: DepsMut, env: Env, addr: H160) {
     let mut backend = CwStorageInterface::new(deps, env, config::token_mint_dummy(), config::chain_id_dummy()).unwrap();
     backend.airdrop_write_balance(&addr);
 }
+
+pub fn airdrop_deploy_contract(deps: DepsMut, env: Env, addr: H160, code: Vec<u8>) {
+    let mut backend = CwStorageInterface::new(deps, env, config::token_mint_dummy(), config::chain_id_dummy()).unwrap();
+    backend.airdrop_deploy_contract(&addr, code);
+}

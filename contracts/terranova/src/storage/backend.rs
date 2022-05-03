@@ -1,21 +1,18 @@
 use std::convert::TryInto;
 
+use cosmwasm_std::{Uint128, Uint256};
 use cw_storage_plus::{Map, PrimaryKey};
 use evm::{H160, U256, H256};
 
 use crate::account::{EvmAccount, EvmContract};
 use crate::storage::{CwStorageInterface, StorageInterface};
 
-/// TODO: Implement PrimaryKey for evm::H160 so that it can be used directly as the key instead of having to convert it
-/// 
 /// A component of the underlying backend to the persistent state accessible through CwStorageInterface
 /// 
-/// Key: an H160 address in the form of a byte array slice \ 
+/// Key: an evm::H160 address
 /// Value: an EvmAccount struct, see its documentation
 pub const ACCOUNTS: Map<&H160, EvmAccount> = Map::new("accounts");
 
-/// TODO: Implement PrimaryKey for evm::H160 so that it can be used directly as the key instead of having to convert it
-///  
 /// A component of the underlying backend to the persistent state accessible through CwStorageInterface
 ///
 /// This map should not be accessed unless you first use the ACCOUNTS map to verify that the provided H160 address 
@@ -23,9 +20,14 @@ pub const ACCOUNTS: Map<&H160, EvmAccount> = Map::new("accounts");
 /// Result and Option handling when using it. <-- actually fk this nvm just directly keying in and just handling 
 /// the None value if it doesn't exist makes more sense
 /// 
-/// Key: an H160 address in the form of a byte array slice \ 
+/// Key: an evm::H160 address
 /// Value: an EvmContract struct, see its documentation
 pub const CONTRACTS: Map<&H160, EvmContract> = Map::new("contracts");
+
+/// Key: a tuple (H160, U256). Convert the U256 to a byte array in big-endian format first.\ 
+/// Don't try implementing PrimaryKey for U256, it's a total fuckshow. If Terra upgrades to version 0.11.0 of cw-storage-plus then it'll be doable.\ 
+/// Value: a U256
+pub const CONTRACT_STORAGE: Map<(H160, &[u8; 32]), U256> = Map::new("contract_storage");
 
 /// Read from persistent EVM state state (after the most recent finalized transaction)
 impl StorageInterface for CwStorageInterface<'_> {
@@ -80,7 +82,7 @@ impl StorageInterface for CwStorageInterface<'_> {
         ACCOUNTS
             .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
-            .map_or_else(U256::zero, |acc| U256::from_big_endian_fast(&acc.balance))
+            .map_or_else(U256::zero, |acc| acc.balance)
     }
 
     /// Possible performance consideration for this and code_hash/code/valids:

@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 pub struct EvmAccount {
     /// Ethereum address
     /// Bytes of an evm::H160
-    pub address: [u8; 20],
+    pub address: H160,
 
     /// Solana/(Cosmwasm?) account nonce
     /// TODO: This is copied from Neon. Do we need this? (I believe not)
@@ -21,11 +21,11 @@ pub struct EvmAccount {
     /// TODO: Document this, explain why a contract account's H160 address can be used in 
     /// our Cosmwasm implementation of EVM as the key to its storage, rather than how it's done in Ethereum
     /// Option of bytes of an evm::H160
-    pub contract_storage_key: Option<[u8; 20]>,
+    pub contract_storage_key: Option<H160>,
 
     /// EVM native balance 
     /// Big-endian bytes of an evm::U256
-    pub balance: [u8; 32],
+    pub balance: U256,
 
     /// Read-write lock
     pub rw_blocked: bool,
@@ -40,11 +40,12 @@ impl EvmAccount {
     /// On contract deployments if this account exists as a user account the contract_storage_key should be changed 
     pub fn new_user_account(address: &H160) -> Self {
         Self {
-            address: *address.as_fixed_bytes(),
+            // address: *address.as_fixed_bytes(),
+            address: *address,
             bump_seed: 0_u8,
             trx_count: 0_u64,
             contract_storage_key: None,
-            balance: U256::zero().to_bytes(),
+            balance: U256::zero(),
             rw_blocked: false,
             ro_blocked_count: 0_u8,
         }

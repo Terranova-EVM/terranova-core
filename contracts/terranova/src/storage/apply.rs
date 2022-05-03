@@ -57,14 +57,20 @@ impl<'a> CwStorageInterface<'a> {
     }
 
     pub fn airdrop_write_balance(&mut self, address: &H160) {
-        println!("Setting balance of {} to 100,000", address);
+        println!("Setting balance of {} to 100,000,000", address);
         if !ACCOUNTS.has(self.cw_deps.storage, address) {
-            println!("hiiii");
             self.init_new_account(address).unwrap();
-            println!("bye");
         }
 
-        self.write_balance(address, U256::from(100_000)).unwrap();
+        self.write_balance(address, U256::from(100_000_000)).unwrap();
+    }
+
+    /// This takes the actual raw contract bytecode that should be written, NOT the contract initialization bytecode in a contract create messaage
+    pub fn airdrop_deploy_contract(&mut self, address: &H160, code: Vec<u8>) {
+        println!("Deploying a contract to {}", address);
+        let valids = evm::Valids::compute(&code);
+
+        self.update_contract_account(*address, U256::one(), Some((code, valids)), BTreeMap::new(), false).unwrap();
     }
 
     /// This could be either a user or contract account, however the same initialization state will be set for both 
@@ -102,7 +108,7 @@ impl<'a> CwStorageInterface<'a> {
             addr, 
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
-                    account.balance = new_balance.to_bytes();
+                    account.balance = new_balance;
                     Ok(account)
                 } else {
                     Err(StdError::NotFound { kind: "EvmAccount".to_string() })
@@ -144,7 +150,7 @@ impl<'a> CwStorageInterface<'a> {
             address,
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
-                    account.contract_storage_key = Some(*address.as_fixed_bytes());
+                    account.contract_storage_key = Some(*address);
                     Ok(account)
                 } else {
                     Err(StdError::NotFound { kind: "EvmAccount".to_string() })
