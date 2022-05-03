@@ -137,6 +137,6 @@ mod tests {
 
         println!("Contract addr: {}", contract_addr);
 
-        airdrop_deploy_contract(deps.as_mut(), mock_env(), sender_addr, contract_code);
+        airdrop_deploy_contract(deps.as_mut(), mock_env(), contract_addr, contract_code);
     }
 }

@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, convert::TryInto};
 
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Order};
 use evm::{backend::Apply, U256, H160, Transfer};
 
 use crate::{storage::{CwStorageInterface}, executor_state::ApplyState, ContractError, account::{EvmAccount, EvmContract}};
 
-use super::{backend::{ACCOUNTS, CONTRACTS}, StorageInterface};
+use super::{backend::{ACCOUNTS, CONTRACTS, CONTRACT_STORAGE}, StorageInterface};
 
 /// Write operations on the backend EVM state
 /// Methods to apply the results of a completed transaction to persistent EVM state
@@ -166,7 +166,6 @@ impl<'a> CwStorageInterface<'a> {
                 code_size: code.len().try_into().expect("code.len() never exceeds u32::max"),
                 code,
                 valids,
-                storage: BTreeMap::new()
             }
         )?;
 
@@ -174,35 +173,38 @@ impl<'a> CwStorageInterface<'a> {
     }
 
     fn write_storage(&mut self, address: &H160, key: U256, value: U256) -> Result<(), ContractError> {
-        CONTRACTS.update(
-            self.cw_deps.storage, 
-            address, 
-            |maybe_contract| {
-                if let Some(mut contract) = maybe_contract {
-                    contract.storage.insert(key, value);
-                    Ok(contract)
-                } else {
-                    Err(StdError::NotFound { kind: "EvmContract".to_string() })
-                }
-            }
+        // Not an entirely necessary check, just for sanity. Remove if needed for performance
+        if !CONTRACTS.has(self.cw_deps.storage, address) {
+            return Err(StdError::NotFound { kind: "EvmContract".to_string() }.into())
+        }
+
+        CONTRACT_STORAGE.save(
+            self.cw_deps.storage,
+            (address, &key.to_bytes()),
+            &value
         )?;
 
         Ok(())  
     }
 
     fn write_clear_storage(&mut self, address: &H160) -> Result<(), ContractError> {
-        CONTRACTS.update(
-            self.cw_deps.storage, 
-            address, 
-            |maybe_contract| {
-                if let Some(mut contract) = maybe_contract {
-                    contract.storage.clear();
-                    Ok(contract)
-                } else {
-                    Err(StdError::NotFound { kind: "EvmContract".to_string() })
-                }
-            }
-        )?;
+        if !CONTRACTS.has(self.cw_deps.storage, address) {
+            return Err(StdError::NotFound { kind: "EvmContract".to_string() }.into())
+        }
+
+        let storage_keys: Vec<Result<(Vec<u8>, U256), StdError>> = CONTRACT_STORAGE
+            .prefix(address)
+            .range(self.cw_deps.storage, None, None, Order::Ascending)
+            .collect();
+
+        for entry in storage_keys {
+            let entry = entry?;
+
+            CONTRACT_STORAGE.remove(
+                self.cw_deps.storage,
+                (address, &entry.0)
+            )
+        }
 
         Ok(()) 
     }

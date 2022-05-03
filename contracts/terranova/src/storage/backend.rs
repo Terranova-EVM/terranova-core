@@ -24,10 +24,11 @@ pub const ACCOUNTS: Map<&H160, EvmAccount> = Map::new("accounts");
 /// Value: an EvmContract struct, see its documentation
 pub const CONTRACTS: Map<&H160, EvmContract> = Map::new("contracts");
 
-/// Key: a tuple (H160, U256). Convert the U256 to a byte array in big-endian format first.\ 
+/// Key: a tuple (H160, U256). Convert the U256 using to_bytes (byte array in big-endian format) first.\ 
 /// Don't try implementing PrimaryKey for U256, it's a total fuckshow. If Terra upgrades to version 0.11.0 of cw-storage-plus then it'll be doable.\ 
 /// Value: a U256
-pub const CONTRACT_STORAGE: Map<(H160, &[u8; 32]), U256> = Map::new("contract_storage");
+// pub const CONTRACT_STORAGE: Map<(H160, &[u8]), U256> = Map::new("contract_storage");
+pub const CONTRACT_STORAGE: Map<(&H160, &[u8]), U256> = Map::new("contract_storage");
 
 /// Read from persistent EVM state state (after the most recent finalized transaction)
 impl StorageInterface for CwStorageInterface<'_> {
@@ -129,13 +130,12 @@ impl StorageInterface for CwStorageInterface<'_> {
 
     /// TODO: Reimplement this if/when contract.storage is refactored as a different data structure
     fn storage(&self, address: &H160, index: &U256) -> U256 {
-        CONTRACTS
-            .may_load(self.cw_deps.storage, address)
+        CONTRACT_STORAGE
+            .may_load(
+                self.cw_deps.storage, 
+                (address, &index.to_bytes())
+            )
             .unwrap_or(None)
-            .map(|contract| contract.storage)
-            .and_then(|storage| {
-                storage.get(index).map(|value| *value)
-            })
             .unwrap_or_else(U256::zero)
     }
 }

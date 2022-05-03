@@ -72,9 +72,5 @@ pub struct EvmContract {
     /// pub valids: RefMut<'a, [u8]>,
     pub valids: Vec<u8>,
 
-    /// TODO: Think about the choice of data structure here \ 
-    /// Neon has their own custom implementation of a HAMT for this:
-    /// Try to understand why they did this - why was it necessary? (specific to Solana? or no...)
-    /// For this proof-of-concept, I'm going to use this and just see if it works
-    pub storage: BTreeMap<U256, U256>
+    // Storage has its own dedicated cw-storage-plus Map with (H160, U256) key values
 }
