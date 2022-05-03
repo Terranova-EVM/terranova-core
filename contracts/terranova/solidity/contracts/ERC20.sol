@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 
 import "./IERC20.sol";
 import "./IERC20Metadata.sol";
+import "./ERC20Simplified.sol";
 
 /**
  * @dev Provides information about the current execution context, including the
@@ -16,6 +17,7 @@ import "./IERC20Metadata.sol";
  *
  * This contract is only required for intermediate, library-like contracts.
  */
+/*
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
@@ -25,6 +27,7 @@ abstract contract Context {
         return msg.data;
     }
 }
+*/
 
 /**
  * @dev Implementation of the {IERC20} interface.
