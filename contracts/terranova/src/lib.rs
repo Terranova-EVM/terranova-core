@@ -13,6 +13,7 @@ pub mod utils;
 pub mod gasometer;
 pub mod transaction;
 pub mod config;
+pub mod airdrop;
 
 pub use crate::error::{ContractError};
 

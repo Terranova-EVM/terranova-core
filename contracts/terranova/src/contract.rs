@@ -2,6 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
+use evm::H160;
 
 use crate::error::ContractError;
 use crate::message::{self, transaction_execute_simple};
@@ -52,6 +53,54 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
+    use evm::{H160};
+    use crate::airdrop::airdrop_write_balance;
+
+    fn parse_hex(hex_asm: &str) -> Vec<u8> {
+        let hex_asm = &hex_asm[2..];
+        let hex_chars: Vec<char> = hex_asm.as_bytes().iter().filter_map(|b| {
+            let ch = char::from(*b);
+            if ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F') {
+                Some(ch)
+            } else {
+                None
+            }
+        }).collect();
+    
+        let mut index = 0usize;
+        let (odd_chars, even_chars): (Vec<char>, Vec<char>) = hex_chars.into_iter().partition(|_| { 
+            index = index + 1;
+            index % 2 == 1
+        });
+    
+        odd_chars.into_iter().zip(even_chars.into_iter()).map(|(c0, c1)| {
+            fn hexchar2int(ch: char) -> u8 {
+                if '0' <= ch && ch <= '9' {
+                    ch as u8 - '0' as u8
+                } else {
+                    0xa + 
+                    if 'a' <= ch && ch <= 'f' {
+                        ch as u8 - 'a' as u8
+                    } else if 'A' <= ch && ch <= 'F' {
+                        ch as u8 - 'A' as u8
+                    } else {
+                        unreachable!()
+                    }
+                }
+            }
+            hexchar2int(c0) * 0x10 + hexchar2int(c1)            
+        }).collect::<Vec<u8>>()
+    }
+
+    fn parse_h160(address_str: &str) -> H160 {
+        let vec_u8 = parse_hex(address_str);
+        let mut array_u8 = [0_u8; 20];
+        for (i, n_u8) in vec_u8.iter().enumerate() {
+            array_u8[i] = *n_u8;
+        }
+
+        H160(array_u8)
+    }
 
     #[test]
     fn proper_initialization() {
@@ -66,7 +115,8 @@ mod tests {
     }
 
     /// TODO
-    fn simple_contract_deploy() {
+    #[test]
+    fn simple_user_user_transfer() {
         let mut deps = mock_dependencies(&[]);
 
         let msg = InstantiateMsg { };
@@ -76,6 +126,10 @@ mod tests {
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // TODO
+        let sender_addr: H160 = parse_h160("0xd3CdA913deB6f67967B99D67aCDFa1712C293601");
 
+        println!("Sender addr: {:?}", sender_addr.to_string());
+
+        airdrop_write_balance(deps.as_mut(), mock_env(), sender_addr);
     }
 }

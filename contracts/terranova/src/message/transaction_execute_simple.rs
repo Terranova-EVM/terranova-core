@@ -63,7 +63,7 @@ pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: Unsig
                 let executor_state = executor.into_state();
                 Some(executor_state.deconstruct())
             } else {
-                None
+                None 
             };
 
             (exit_reason, result, apply, used_gas)

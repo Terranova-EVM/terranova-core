@@ -56,6 +56,17 @@ impl<'a> CwStorageInterface<'a> {
         Ok(())
     }
 
+    pub fn airdrop_write_balance(&mut self, address: &H160) {
+        println!("Setting balance of {} to 100,000", address);
+        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+            println!("hiiii");
+            self.init_new_account(address).unwrap();
+            println!("bye");
+        }
+
+        self.write_balance(address, U256::from(100_000)).unwrap();
+    }
+
     /// This could be either a user or contract account, however the same initialization state will be set for both 
     /// (with contract_storage_key set to None). Additional logic should be implemented after this to initialize
     /// the contract code and update this account's contract_storage_key field if the account is a contract account.
