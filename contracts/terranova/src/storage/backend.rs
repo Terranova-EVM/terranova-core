@@ -80,7 +80,7 @@ impl StorageInterface for CwStorageInterface<'_> {
         ACCOUNTS
             .may_load(self.cw_deps.storage, address)
             .unwrap_or(None)
-            .map_or_else(U256::zero, |acc| acc.balance)
+            .map_or_else(U256::zero, |acc| U256::from_big_endian_fast(&acc.balance))
     }
 
     /// Possible performance consideration for this and code_hash/code/valids:

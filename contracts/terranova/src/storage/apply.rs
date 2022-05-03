@@ -76,7 +76,7 @@ impl<'a> CwStorageInterface<'a> {
             ACCOUNTS.save(
                 self.cw_deps.storage,
                 address,
-                &EvmAccount::new_user_account(*address)
+                &EvmAccount::new_user_account(address)
             )?;
         }
 
@@ -102,7 +102,7 @@ impl<'a> CwStorageInterface<'a> {
             addr, 
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
-                    account.balance = new_balance;
+                    account.balance = new_balance.to_bytes();
                     Ok(account)
                 } else {
                     Err(StdError::NotFound { kind: "EvmAccount".to_string() })
@@ -144,7 +144,7 @@ impl<'a> CwStorageInterface<'a> {
             address,
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
-                    account.contract_storage_key = Some(*address);
+                    account.contract_storage_key = Some(*address.as_fixed_bytes());
                     Ok(account)
                 } else {
                     Err(StdError::NotFound { kind: "EvmAccount".to_string() })
