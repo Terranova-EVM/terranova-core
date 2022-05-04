@@ -54,7 +54,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use evm::{H160};
-    use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract};
+    use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract, get_backend};
+    use crate::storage::backend::ACCOUNTS;
 
     fn parse_hex(hex_asm: &str) -> Vec<u8> {
         let hex_asm = &hex_asm[2..];
@@ -123,15 +124,62 @@ mod tests {
         let info = mock_info("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // TODO
-        let sender_addr: H160 = parse_h160("0xd3CdA913deB6f67967B99D67aCDFa1712C293601");
+        let sender_addr: H160 = parse_h160("0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1");
+        let receiver_addr: H160 = parse_h160("0xd3CdA913deB6f67967B99D67aCDFa1712C293601");
 
         println!("Sender addr: {}", sender_addr);
 
         airdrop_write_balance(deps.as_mut(), mock_env(), sender_addr);
+        // airdrop_write_balance(deps.as_mut(), mock_env(), receiver_addr);
+        // Python (3.0+) script for creating rlp-encoded raw unsigned transaction
+        // import rlp
+        //
+        // class NoChainTrx(rlp.Serializable):
+        //     fields = (
+        //         ('nonce', rlp.codec.big_endian_int),
+        //         ('gasPrice', rlp.codec.big_endian_int),
+        //         ('gasLimit', rlp.codec.big_endian_int),
+        //         ('toAddress', rlp.codec.binary),
+        //         ('value', rlp.codec.big_endian_int),
+        //         ('callData', rlp.codec.binary),
+        //     )
+        //
+        //     @classmethod
+        //     def fromString(cls, s):
+        //         return rlp.decode(s, NoChainTrx)y),
+        //
+        // tx = NoChainTrx(100, 1, 100000, 0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1.to_bytes(20, 'big'), 123456, b'')
+        // rlp.encode(tx).hex()
 
+        let trx_hex = "0xe06401830186a094b34e2213751c5d8e9a31355fca6f1b4fa5bb6be18301e24080"; // COME BACK TO THIS TRANSACTION. address 0xB34e..B7bE1 sends 123456 to themselves, somehow their account increases by that amount instead of being same
+        // let trx_hex = "0xe06401830186a094d3cda913deb6f67967b99d67acdfa1712c2936018301e24080"; 
+        let trx = parse_hex(&trx_hex);
+        println!("{:?}", trx);
+        let msg = ExecuteMsg::CallFromRawEthereumTX { 
+            caller_evm_address: sender_addr.to_fixed_bytes(), 
+            unsigned_tx: trx 
+        };
+
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+        println!("{:?}", res);
+
+        let backend = get_backend(deps.as_mut(), mock_env());
+        println!("Sender account result: {:?}", ACCOUNTS.load(deps.as_ref().storage, &sender_addr));
+        println!("Receiver account result: {:?}", ACCOUNTS.load(deps.as_ref().storage, &receiver_addr));
+    }
+
+    fn simple_contract_deploy() {
+        let mut deps = mock_dependencies(&[]);
+
+        let msg = InstantiateMsg { };
+        let info = mock_info("creator", &coins(1000, "earth"));
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        
         let contract_addr: H160 = parse_h160("0x402B964289Da03f1F26Bf1bAdDc1E34DA8468F9a");
         let contract_code = parse_hex("0608");
 
@@ -139,4 +187,5 @@ mod tests {
 
         airdrop_deploy_contract(deps.as_mut(), mock_env(), contract_addr, contract_code);
     }
-}
+}   
+
