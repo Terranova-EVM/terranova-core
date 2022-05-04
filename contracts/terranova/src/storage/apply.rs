@@ -220,14 +220,17 @@ impl<'a> CwStorageInterface<'a> {
     }
     
     fn transfer_nova_tokens(&mut self, source: H160, target: H160, value: U256) -> Result<(), ContractError> {
+        // If sender is sending to their own address, no change should occur
+        if source == target { return Ok(()) }
+
         // This check is redundant since the same check happens inside of init_new_account
         // However we may want to replace init_new_account with a different implementation, so keep it here
         if !ACCOUNTS.has(self.cw_deps.storage, &source) {
             self.init_new_account(&source)?;
         }
 
-        if !ACCOUNTS.has(self.cw_deps.storage, &source) {
-            self.init_new_account(&source)?;
+        if !ACCOUNTS.has(self.cw_deps.storage, &target) {
+            self.init_new_account(&target)?;
         }
 
         let source_balance = self.balance(&source).checked_sub(value)
