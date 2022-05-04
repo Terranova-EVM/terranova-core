@@ -6,5 +6,13 @@
         "default": "terra17mxyzvja6mmwpw6syzg3ln8wfq0mf3zu2rugsh"
       }
     }
+  },
+  "localterra": {
+    "terranova": {
+      "codeId": "1",
+      "contractAddresses": {
+        "default": "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
+      }
+    }
   }
 }
