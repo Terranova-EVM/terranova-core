@@ -7,6 +7,6 @@ module.exports = {
       "remain yard rebuild eternal okay ginger deputy paper scatter square meadow manage filter present lend off shoe moral impact defy analyst present amateur enough",
   },
   custom_tester_2: {
-    privateKey: "fGl1yNoUnnNUqTUXXhxH9vJU0htlz9lWwBt3fQw+ixw=",
+    mnemonic: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
   },
 };
