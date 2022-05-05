@@ -11,7 +11,7 @@ abstract contract Context {
     }
 }
 
-contract ERC20Simplfiied is Context {
+contract ERC20Simplified is Context {
     string private _name;
     string private _symbol;
 
