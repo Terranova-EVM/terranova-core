@@ -30,11 +30,11 @@ pub fn validate() -> Result<(), ContractError> {
 }
 
 pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: UnsignedTransaction) -> Result<Response, ContractError> {
-    let (exit_reason, return_value, apply_state, used_gas) = {
+    let (exit_reason, return_value, apply_state, used_gas, response) = {
         let mut executor = Machine::new(caller_address, &storage)?;
         executor.gasometer_mut().record_transaction_size(&trx);
 
-        match trx.to {
+        let response: Response = match trx.to {
             Some(code_address) => {
                 executor.call_begin(
                     caller_address, 
@@ -42,7 +42,7 @@ pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: Unsig
                     trx.call_data,
                     trx.value, 
                     trx.gas_limit
-                )?;
+                )?
             },
             None => {
                 executor.create_begin(
@@ -50,18 +50,18 @@ pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: Unsig
                     trx.call_data,
                     trx.value,
                     trx.gas_limit
-                )?;
+                )?
             },
-        }
+        };
 
         let (result, exit_reason) = executor.execute();
-
+        debug_print!("result, exit_reason of executor.execute(): {:?}, {:?}", result, exit_reason);
         let steps_executed = executor.get_steps_executed();
         executor.gasometer_mut().pad_evm_steps(steps_executed);
 
         let used_gas = executor.used_gas();
         if used_gas > trx.gas_limit {
-            (evm::ExitError::OutOfGas.into(), vec![], None, trx.gas_limit)
+            (evm::ExitError::OutOfGas.into(), vec![], None, trx.gas_limit, response)
         } else {
             let apply = if exit_reason.is_succeed() {
                 let executor_state = executor.into_state();
@@ -70,16 +70,17 @@ pub fn execute(mut storage: CwStorageInterface, caller_address: H160, trx: Unsig
                 None 
             };
 
-            (exit_reason, result, apply, used_gas)
+            (exit_reason, result, apply, used_gas, response)
         }
     };
 
-    let response = Response::new();
+    debug_print!("exit_reason: {:?}", exit_reason);
+    let response = response
+        .set_data(return_value);
 
     // TODO: Gas payment and calculation
 
     if let Some(apply_state) = apply_state {
-        println!("{:?}", apply_state);
         storage.apply_state_change(apply_state)?;
     } else {
         // Transaction ended with error, no state to apply

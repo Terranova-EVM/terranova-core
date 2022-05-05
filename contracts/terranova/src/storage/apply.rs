@@ -173,6 +173,7 @@ impl<'a> CwStorageInterface<'a> {
     }
 
     fn write_storage(&mut self, address: &H160, key: U256, value: U256) -> Result<(), ContractError> {
+        debug_print!("write_storage, writing value: {:?} to ({:?}, {:?})", value, address, key);
         // Not an entirely necessary check, just for sanity. Remove if needed for performance
         if !CONTRACTS.has(self.cw_deps.storage, address) {
             return Err(StdError::NotFound { kind: "EvmContract".to_string() }.into())
@@ -213,13 +214,14 @@ impl<'a> CwStorageInterface<'a> {
         debug_print!("apply_transfers: {:?}", transfers);
 
         for transfer in transfers {
-            self.transfer_nova_tokens(transfer.source, transfer.target, transfer.value)?;
+            self.transfer_native_tokens(transfer.source, transfer.target, transfer.value)?;
         }
 
         Ok(())
     }
     
-    fn transfer_nova_tokens(&mut self, source: H160, target: H160, value: U256) -> Result<(), ContractError> {
+    /// Make a transfer between the native balances of two EVM accounts
+    fn transfer_native_tokens(&mut self, source: H160, target: H160, value: U256) -> Result<(), ContractError> {
         // If sender is sending to their own address, no change should occur
         if source == target { return Ok(()) }
 
@@ -249,14 +251,14 @@ impl<'a> CwStorageInterface<'a> {
         values: Vec<Apply<BTreeMap<U256, U256>>>,
     ) -> Result<(), ContractError> {
         debug_print!("Apply contract results");
-
+        debug_print!("{:?}", values);
         for apply in values {
             match apply {
                 Apply::Modify {address, nonce, code_and_valids, storage, reset_storage} => {
                     // if is_precompile_address(&address) {
                     //     continue;
                     // }
-
+                    debug_print!("Modify address:{:?} modify storage: {:?}", address, storage);
                     self.update_contract_account(address, nonce, code_and_valids, storage, reset_storage)?;
                 },
                 Apply::Delete { address } => {

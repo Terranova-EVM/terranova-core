@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 
+use cosmwasm_std::Response;
 use evm::{Capture, ExitError, ExitFatal, ExitReason, Handler, Valids, H160, H256, U256};
 use evm_runtime::{save_created_address, save_return_value, Control, CONFIG};
 use serde::{Deserialize, Serialize};
@@ -407,7 +408,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         input: Vec<u8>,
         transfer_value: U256,
         #[allow(unused_variables)] gas_limit: U256,
-    ) -> Result<(), ContractError> {
+    ) -> Result<Response, ContractError> {
         event!(TransactCall {
             caller,
             address: code_address,
@@ -446,9 +447,13 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
         let runtime = evm::Runtime::new(code, valids, input, context);
 
+        debug_print!("Pushing call to executor runtime");
         self.runtime.push((runtime, CreateReason::Call));
 
-        Ok(())
+        let response = Response::new()
+            .add_attribute("type", "call");
+        
+        Ok(response)
     }
 
     /// Begins a creation (deployment) of an Ethereum smart contract.
@@ -463,7 +468,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         code: Vec<u8>,
         transfer_value: U256,
         #[allow(unused_variables)] gas_limit: U256,
-    ) -> Result<(), ContractError> {
+    ) -> Result<Response, ContractError> {
         event!(TransactCreate {
             caller,
             value: transfer_value,
@@ -478,7 +483,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
         let scheme = evm::CreateScheme::Legacy { caller };
 
-        match self
+        let response: Response = match self
             .executor
             .create(caller, scheme, transfer_value, code, None)
         {
@@ -512,10 +517,14 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
 
                 self.runtime
                     .push((instance, CreateReason::Create(info.address)));
+                
+                Response::new()
+                    .add_attribute("type", "create")
+                    .add_attribute("address", "0x".to_string() + &hex::encode(info.address.as_bytes()))
             }
-        }
+        };
 
-        Ok(())
+        Ok(response)
     }
 
     #[cfg(feature = "tracing")]
