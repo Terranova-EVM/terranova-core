@@ -236,7 +236,7 @@ impl<'a, B: StorageInterface> Handler for Executor<'a, B> {
 
         // Get the create address from given scheme.
         let address = self.create_address(scheme);
-
+        debug_print!("Created contract address: {}", address);
         event!(Create {
             caller,
             address,
