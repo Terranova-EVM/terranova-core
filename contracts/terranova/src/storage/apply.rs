@@ -296,7 +296,7 @@ impl<'a> CwStorageInterface<'a> {
             self.write_deploy_contract(&address, code, valids)?;
         }
 
-        if reset_storage | storage.is_empty() {
+        if reset_storage | !storage.is_empty() {
             if reset_storage {
                 self.write_clear_storage(&address)?;
             }
