@@ -52,6 +52,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Order};
     use evm::{H160, U256};
+    use serde::{Serialize, Serializer};
     use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract, get_backend};
     use crate::storage::backend::{ACCOUNTS, CONTRACTS};
     use env_logger;
@@ -125,15 +126,16 @@ mod tests {
         // we can just call .unwrap() to assert this was a success
         let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-        // TODO
         let sender_addr: H160 = parse_h160("0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1");
-        let receiver_addr: H160 = parse_h160("0xd3CdA913deB6f67967B99D67aCDFa1712C293601");
+        
+        // This addresses differs by sender_addr by one character in the middle
+        let receiver_addr: H160 = parse_h160("0xB34e2213751c5d8e9a31755fcA6F1B4FA5bB6bE1");
 
         airdrop_write_balance(deps.as_mut(), mock_env(), sender_addr);
         
         // Python (3.0+) script for creating rlp-encoded raw unsigned transaction
         // import rlp
-        //
+        // 
         // class NoChainTrx(rlp.Serializable):
         //     fields = (
         //         ('nonce', rlp.codec.big_endian_int),
@@ -143,23 +145,24 @@ mod tests {
         //         ('value', rlp.codec.big_endian_int),
         //         ('callData', rlp.codec.binary),
         //     )
-        //
+        
         //     @classmethod
         //     def fromString(cls, s):
-        //         return rlp.decode(s, NoChainTrx)y),
-        //
+        //         return rlp.decode(s, NoChainTrx)
+        
         // tx = NoChainTrx(
         //     100, # nonce
         //     1, # gasPrice
         //     100000, # gasLimit
-        //     bytes.fromhex('d3CdA913deB6f67967B99D67aCDFa1712C293601'), # toAddress
+        //     bytes.fromhex('0xB34e2213751c5d8e9a31755fcA6F1B4FA5bB6bE1'), # toAddress
         //     123456, # value
         //     bytes.fromhex('') # callData
         // )
-        // 
+        
         // rlp.encode(tx).hex()
             
-        let trx_hex = "0xe06401830186a094d3cda913deb6f67967b99d67acdfa1712c2936018301e24080"; 
+        // let trx_hex = "0xe06401830186a094d3cda913deb6f67967b99d67acdfa1712c2936018301e24080";
+        let trx_hex = "0xe00101830186a094b34e2213751c5d8e9a31755fca6f1b4fa5bb6be18301e24080";
         let trx = parse_hex(&trx_hex);
 
         let msg = ExecuteMsg::CallFromRawEthereumTX { 
@@ -211,13 +214,5 @@ mod tests {
 
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
         println!("{:?}", res);
-
-        let all = CONTRACTS.range(deps.as_ref().storage, None, None, Order::Ascending);
-
-        for i in all {
-            let i = i.unwrap();
-            // println!("Addr: {}", H160::from_slice(&i.0));
-            // println!("Contract info: {:?}", i.1);
-        }
     }
 }
