@@ -15,6 +15,9 @@ pub mod transaction;
 pub mod config;
 pub mod airdrop;
 
+#[cfg(test)]
+pub mod testing;
+
 pub use crate::error::{ContractError};
 
 #[cfg(feature = "tracing")]
