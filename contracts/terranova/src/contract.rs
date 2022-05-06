@@ -32,7 +32,7 @@ pub fn execute(
     // TODO: First check that the message sender is an operator
 
     match msg {
-        ExecuteMsg::CallFromRawEthereumTX { caller_evm_address, unsigned_tx } => {
+        ExecuteMsg::ExecuteRawEthereumTx { caller_evm_address, unsigned_tx } => {
             transaction_execute_simple::process(deps, env, caller_evm_address, unsigned_tx)
         }
         _ => panic!("Not implemented")
