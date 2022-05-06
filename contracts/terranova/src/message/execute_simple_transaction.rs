@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub fn process(deps: DepsMut, env: Env, caller_address_bytes: [u8; 20], unsigned_tx: Vec<u8>) -> Result<Response, ContractError> {
-    let caller_address_h160 = H160::from_slice(&caller_address_bytes);
+    let caller_address = H160::from_slice(&caller_address_bytes);
     let trx = UnsignedTransaction::from_rlp(&unsigned_tx)?;
     let storage = CwStorageInterface::new(
         deps, 
@@ -20,7 +20,7 @@ pub fn process(deps: DepsMut, env: Env, caller_address_bytes: [u8; 20], unsigned
     )?;
     validate()?;
 
-    execute(storage, caller_address_h160, trx)
+    execute(storage, caller_address, trx)
 }
 
 /// Implement this later

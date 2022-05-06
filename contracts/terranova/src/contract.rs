@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::message::{self, transaction_execute_simple};
+use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
@@ -33,7 +33,13 @@ pub fn execute(
 
     match msg {
         ExecuteMsg::ExecuteRawEthereumTx { caller_evm_address, unsigned_tx } => {
-            transaction_execute_simple::process(deps, env, caller_evm_address, unsigned_tx)
+            execute_simple_transaction::process(deps, env, caller_evm_address, unsigned_tx)
+        }
+        ExecuteMsg::StoreTxChunk { caller_evm_address, full_tx_hash, chunk_index, chunk_data } => {
+            store_transaction_chunk::process(deps, caller_evm_address, full_tx_hash, chunk_index, chunk_data)
+        }
+        ExecuteMsg::ExecuteChunkedEthereumTx { caller_evm_address, full_tx_hash, chunk_count } => {
+            execute_chunked_transaction::process(deps, env, caller_evm_address, full_tx_hash, chunk_count)
         }
         _ => panic!("Not implemented")
     }

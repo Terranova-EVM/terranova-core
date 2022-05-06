@@ -13,7 +13,27 @@ pub enum ExecuteMsg {
         caller_evm_address: [u8; 20],
 
         /// THe RLP encoded unsigned transaction message
-        unsigned_tx: Vec<u8>
+        unsigned_tx: Vec<u8>,
+    },
+
+    StoreTxChunk {
+        /// H160 address in the form of a byte array
+        caller_evm_address: [u8; 20],
+
+        /// keccak_h256 hash of the full unsigned transaction as as byte array
+        full_tx_hash: [u8; 32],
+
+        chunk_index: u8,
+
+        chunk_data: Vec<u8>,
+    },
+
+    ExecuteChunkedEthereumTx {
+        caller_evm_address: [u8; 20],
+
+        full_tx_hash: [u8; 32],
+
+        chunk_count: u8,
     },
 }
 
@@ -22,4 +42,6 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
 }
 
-pub mod transaction_execute_simple;
+pub mod execute_simple_transaction;
+pub mod store_transaction_chunk;
+pub mod execute_chunked_transaction;
