@@ -9,9 +9,9 @@
   },
   "localterra": {
     "terranova": {
-      "codeId": "1",
+      "codeId": "2",
       "contractAddresses": {
-        "default": "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
+        "default": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"
       }
     }
   }
