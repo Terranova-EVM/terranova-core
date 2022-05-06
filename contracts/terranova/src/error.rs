@@ -19,7 +19,13 @@ pub enum ContractError {
     BalanceOverflow,
 
     #[error("An account nonce overflowed")]
-    NonceOverflow
+    NonceOverflow,
+
+    #[error("The collected chunks of the transaction do not match the provided hash")]
+    InvalidTxChunks,
+
+    #[error("One or more of the chunks for this transaction are still missing")]
+    TxChunksMissing,
 }
 
 macro_rules! Err {

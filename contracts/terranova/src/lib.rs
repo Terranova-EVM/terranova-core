@@ -3,6 +3,9 @@ mod debug;
 #[macro_use]
 mod error;
 
+#[cfg(test)]
+pub mod testing;
+
 pub mod contract;
 pub mod message;
 pub mod account;
@@ -14,9 +17,7 @@ pub mod gasometer;
 pub mod transaction;
 pub mod config;
 pub mod airdrop;
-
-#[cfg(test)]
-pub mod testing;
+pub mod tx_chunk;
 
 pub use crate::error::{ContractError};
 
