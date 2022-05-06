@@ -1,6 +1,3 @@
-use std::{cell::RefMut, collections::BTreeMap};
-
-use cosmwasm_std::Uint256;
 use evm::{H160, U256};
 use serde::{Serialize, Deserialize};
 
@@ -52,7 +49,6 @@ impl EvmAccount {
     }
 }
 
-/// TODO: Document this, THE TYPE CHOICES FOR THIS ARE ALL REALLY LAZY, COME BACK TO THIS
 /// For every EvmAccount struct that is a contract account, there will be a corresponding EvmContract
 /// stored in the CONTRACTS map, with the same key, the account's H160 address, used. The H160 address is stored
 /// as Some(H160_address) in the contract_storage_key field of EvmAccount to make this relationship clear.
@@ -61,15 +57,8 @@ pub struct EvmContract {
     /// Contract code size
     pub code_size: u32,
 
-    /// TODO: Neon uses RefMut for this, as in the below line - why? \ 
-    /// It's probably important somewhere else in the code, so it's likely this will have to be changed to
-    /// the same implementation. I just couldn't figure out to get the RefMut<[u8]> type to be serde 
-    /// serializable so I just said fuck it for now.\ 
-    /// pub code: RefMut<'a, [u8]>,
     pub code: Vec<u8>,
-    
-    /// TODO: Neon uses RefMut for this, as in the below line - why? \ 
-    /// pub valids: RefMut<'a, [u8]>,
+
     pub valids: Vec<u8>,
 
     // Storage has its own dedicated cw-storage-plus Map with (H160, U256) key values
