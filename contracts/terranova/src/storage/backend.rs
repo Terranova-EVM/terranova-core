@@ -101,9 +101,6 @@ impl<S: Readable> StorageInterface for CwStorageInterface<S> {
             .expect("usize is 8 bytes")
     }
 
-    /// THIS CURRENTLY USES A DUMMY HASHING FUNCTION, IT'S NOT REAL
-    /// TODO: Implement the hashing shit in utils.rs
-    /// TODO: Reimplement this when EvmContract.code type is changed to RefMut<[u8]>
     fn code_hash(&self, address: &H160) -> H256 {
         CONTRACTS
             .may_load(self.cw_deps.get_ref(), address)
@@ -122,7 +119,6 @@ impl<S: Readable> StorageInterface for CwStorageInterface<S> {
             .map_or_else(Vec::new, |code| code)
     }
 
-    /// TODO: Reimplement this when EvmContract.valids type is changed to RefMut<[u8]>
     fn valids(&self, address: &H160) -> Vec<u8> {
         CONTRACTS
             .may_load(self.cw_deps.get_ref(), address)
@@ -130,7 +126,6 @@ impl<S: Readable> StorageInterface for CwStorageInterface<S> {
             .map_or_else(Vec::new, |contract| contract.valids)
     }
 
-    /// TODO: Reimplement this if/when contract.storage is refactored as a different data structure
     fn storage(&self, address: &H160, index: &U256) -> U256 {
         CONTRACT_STORAGE
             .may_load(
