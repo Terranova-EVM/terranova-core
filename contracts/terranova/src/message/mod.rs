@@ -40,8 +40,25 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    /// Get the response from a 'view' function of an EVM contract\ 
+    /// Returns a byte array (Binary directly convertible to a byte array) of whatever the view function returns\ 
+    /// This actualy just executes arbitrary EVM bytecode, but does not apply state changes,
+    /// and errors if the transaction tries to alter any state
+    RawEthereumQuery  {
+        caller_evm_address: [u8; 20],
+        unsigned_tx: Vec<u8>
+    },
+
+    QueryAccountBalance {
+        evm_address: [u8; 20],
+    },
+
+    QueryAccountNonce {
+        evm_address: [u8; 20],
+    },
 }
 
 pub mod execute_simple_transaction;
 pub mod store_transaction_chunk;
 pub mod execute_chunked_transaction;
+pub mod raw_ethereum_query;

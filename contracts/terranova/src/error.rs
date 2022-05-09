@@ -26,6 +26,9 @@ pub enum ContractError {
 
     #[error("One or more of the chunks for this transaction are still missing")]
     TxChunksMissing,
+
+    #[error("The provided query is invalid because it tried to incur a state change")]
+    QueryChangedState,
 }
 
 macro_rules! Err {

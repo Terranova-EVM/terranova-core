@@ -5,7 +5,7 @@ mod apply;
 
 use std::{collections::{BTreeMap, BTreeSet}, cell::RefCell};
 
-use cosmwasm_std::{Addr, Env, DepsMut};
+use cosmwasm_std::{Addr, Env, DepsMut, Storage, Deps};
 use evm::{H160, U256, H256};
 
 use crate::account::{EvmAccount, EvmContract};
@@ -26,9 +26,9 @@ enum Account {
 /// State changes *during* a transaction are applied to ExecutorSubstates, which hold all of the updates to accounts incurred by the transaction.
 /// At the successful completion of a transaction, the Executor takes the produced ExecutorState, which holds the last produced ExecutorSubstate
 /// whose results are then applied to the actual stored EVM state through this interface.
-pub struct CwStorageInterface<'a> {
+pub struct CwStorageInterface<S: Readable> {
     /// Gives write access to Cosmasm storage
-    cw_deps: DepsMut<'a>,
+    cw_deps: S,
 
     /// Cosmwasm environment\ 
     /// Gives access to block info, as well as chainid (can we just use this for chainid needed by StorageInterface?)\ 
@@ -84,4 +84,30 @@ pub trait StorageInterface {
     fn valids(&self, address: &H160) -> Vec<u8>;
     /// Get data from EVM storage
     fn storage(&self, address: &H160, index: &U256) -> U256;
+}
+
+pub trait Readable {
+    fn get_ref(&self) -> &dyn Storage;
+}
+
+pub trait Writable {
+    fn get_mut(&mut self) -> &mut dyn Storage;
+}
+
+impl<'a> Readable for DepsMut<'a> {
+    fn get_ref(&self) -> &dyn Storage {
+        self.storage
+    }
+}
+
+impl<'a> Writable for DepsMut<'a> {
+    fn get_mut(&mut self) -> &mut dyn Storage {
+        self.storage
+    }
+}
+
+impl<'a> Readable for Deps<'a> {
+    fn get_ref(&self) -> &dyn Storage {
+        self.storage
+    }
 }

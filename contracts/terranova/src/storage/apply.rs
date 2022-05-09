@@ -5,11 +5,11 @@ use evm::{backend::Apply, U256, H160, Transfer};
 
 use crate::{storage::{CwStorageInterface}, executor_state::ApplyState, ContractError, account::{EvmAccount, EvmContract}};
 
-use super::{backend::{ACCOUNTS, CONTRACTS, CONTRACT_STORAGE}, StorageInterface};
+use super::{backend::{ACCOUNTS, CONTRACTS, CONTRACT_STORAGE}, StorageInterface, Readable, Writable};
 
 /// Write operations on the backend EVM state
 /// Methods to apply the results of a completed transaction to persistent EVM state
-impl<'a> CwStorageInterface<'a> {
+impl<S: Readable + Writable> CwStorageInterface<S> {
     pub fn apply_state_change(
         &mut self,
         state: ApplyState,
@@ -41,24 +41,24 @@ impl<'a> CwStorageInterface<'a> {
 
     /// Public method to increment account nonce
     pub fn increment_nonce(&mut self, address: &H160) -> Result<(), ContractError> {
-        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), address) {
             self.init_new_account(address)?;
         }
 
-        let mut account = ACCOUNTS.may_load(self.cw_deps.storage, address)?
+        let mut account = ACCOUNTS.may_load(self.cw_deps.get_ref(), address)?
             .ok_or(StdError::NotFound { kind: "EvmAccount".to_string() })?;
 
         account.trx_count = account.trx_count.checked_add(1)
             .ok_or_else(|| E!(ContractError::NonceOverflow; "Account {} - nonce overflow", address))?;
 
-        ACCOUNTS.save(self.cw_deps.storage, address, &account)?;
+        ACCOUNTS.save(self.cw_deps.get_mut(), address, &account)?;
 
         Ok(())
     }
 
     pub fn airdrop_write_balance(&mut self, address: &H160) {
         println!("Setting balance of {} to 100,000,000", address);
-        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), address) {
             self.init_new_account(address).unwrap();
         }
 
@@ -78,9 +78,9 @@ impl<'a> CwStorageInterface<'a> {
     /// the contract code and update this account's contract_storage_key field if the account is a contract account.
     fn init_new_account(&mut self, address: &H160) -> Result<(), ContractError> {
         // If account already exists in the EVM state, do nothing
-        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), address) {
             ACCOUNTS.save(
-                self.cw_deps.storage,
+                self.cw_deps.get_mut(),
                 address,
                 &EvmAccount::new_user_account(address)
             )?;
@@ -92,10 +92,10 @@ impl<'a> CwStorageInterface<'a> {
     /// TODO: 
     fn delete_account(&mut self, address: &H160) -> Result<(), ContractError> {
         // Accounts can only be deleted by calling suicide() in contract code
-        assert!(CONTRACTS.has(self.cw_deps.storage, address));
+        assert!(CONTRACTS.has(self.cw_deps.get_ref(), address));
 
-        ACCOUNTS.remove(self.cw_deps.storage, address);
-        CONTRACTS.remove(self.cw_deps.storage, address);
+        ACCOUNTS.remove(self.cw_deps.get_mut(), address);
+        CONTRACTS.remove(self.cw_deps.get_mut(), address);
 
         Ok(())
     }
@@ -104,7 +104,7 @@ impl<'a> CwStorageInterface<'a> {
     /// Will return an error otherwise
     fn write_balance(&mut self, addr: &H160, new_balance: U256) -> Result<(), ContractError> {
         ACCOUNTS.update(
-            self.cw_deps.storage, 
+            self.cw_deps.get_mut(), 
             addr, 
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
@@ -123,7 +123,7 @@ impl<'a> CwStorageInterface<'a> {
     /// Will return an error otherwise
     fn write_nonce(&mut self, address: &H160, new_nonce: u64) -> Result<(), ContractError> {
         ACCOUNTS.update(
-            self.cw_deps.storage, 
+            self.cw_deps.get_mut(), 
             address, 
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
@@ -140,13 +140,13 @@ impl<'a> CwStorageInterface<'a> {
 
     fn write_deploy_contract(&mut self, address: &H160, code: Vec<u8>, valids: Vec<u8>) -> Result<(), ContractError> {
         // Redundant here, can remove if needed for performance
-        if !ACCOUNTS.has(self.cw_deps.storage, address) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), address) {
             self.init_new_account(address)?;
         } 
 
         // Signify that the account is a contract account by setting the contract_storage_key field
         ACCOUNTS.update(
-            self.cw_deps.storage,
+            self.cw_deps.get_mut(),
             address,
             |maybe_account| {
                 if let Some(mut account) = maybe_account {
@@ -160,7 +160,7 @@ impl<'a> CwStorageInterface<'a> {
 
         // Save code and valids to CONTRACT entry, initialize new storage
         CONTRACTS.save(
-            self.cw_deps.storage,
+            self.cw_deps.get_mut(),
             address,
             &EvmContract {
                 code_size: code.len().try_into().expect("code.len() never exceeds u32::max"),
@@ -175,12 +175,12 @@ impl<'a> CwStorageInterface<'a> {
     fn write_storage(&mut self, address: &H160, key: U256, value: U256) -> Result<(), ContractError> {
         debug_print!("write_storage, writing value: {:?} to ({:?}, {:?})", value, address, key);
         // Not an entirely necessary check, just for sanity. Remove if needed for performance
-        if !CONTRACTS.has(self.cw_deps.storage, address) {
+        if !CONTRACTS.has(self.cw_deps.get_ref(), address) {
             return Err(StdError::NotFound { kind: "EvmContract".to_string() }.into())
         }
 
         CONTRACT_STORAGE.save(
-            self.cw_deps.storage,
+            self.cw_deps.get_mut(),
             (address, &key.to_bytes()),
             &value
         )?;
@@ -189,20 +189,20 @@ impl<'a> CwStorageInterface<'a> {
     }
 
     fn write_clear_storage(&mut self, address: &H160) -> Result<(), ContractError> {
-        if !CONTRACTS.has(self.cw_deps.storage, address) {
+        if !CONTRACTS.has(self.cw_deps.get_ref(), address) {
             return Err(StdError::NotFound { kind: "EvmContract".to_string() }.into())
         }
 
         let storage_keys: Vec<Result<(Vec<u8>, U256), StdError>> = CONTRACT_STORAGE
             .prefix(address)
-            .range(self.cw_deps.storage, None, None, Order::Ascending)
+            .range(self.cw_deps.get_ref(), None, None, Order::Ascending)
             .collect();
 
         for entry in storage_keys {
             let entry = entry?;
 
             CONTRACT_STORAGE.remove(
-                self.cw_deps.storage,
+                self.cw_deps.get_mut(),
                 (address, &entry.0)
             )
         }
@@ -227,11 +227,11 @@ impl<'a> CwStorageInterface<'a> {
 
         // This check is redundant since the same check happens inside of init_new_account
         // However we may want to replace init_new_account with a different implementation, so keep it here
-        if !ACCOUNTS.has(self.cw_deps.storage, &source) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), &source) {
             self.init_new_account(&source)?;
         }
 
-        if !ACCOUNTS.has(self.cw_deps.storage, &target) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), &target) {
             self.init_new_account(&target)?;
         }
 
@@ -278,7 +278,7 @@ impl<'a> CwStorageInterface<'a> {
         storage: BTreeMap<U256, U256>,
         reset_storage: bool
     ) -> Result<(), ContractError> {
-        if !ACCOUNTS.has(self.cw_deps.storage, &address) {
+        if !ACCOUNTS.has(self.cw_deps.get_ref(), &address) {
             self.init_new_account(&address)?;
         }
 

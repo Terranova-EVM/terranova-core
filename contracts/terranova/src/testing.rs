@@ -3,9 +3,10 @@ use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{coins, from_binary, Order};
 use evm::{H160, U256};
 use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract, get_backend};
-use crate::contract::{instantiate, execute};
+use crate::contract::{instantiate, execute, query};
 use crate::storage::backend::{ACCOUNTS, CONTRACTS, CONTRACT_STORAGE};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::transaction::UnsignedTransaction;
 use crate::utils::{parse_h160, parse_hex};
 use env_logger;
 
@@ -138,19 +139,6 @@ fn simple_contract_interact() {
     
     let contract_addr = parse_h160(&res.attributes[1].value);
 
-    debug_print!("Calling retrieve function");
-
-    // Call retrieve() function of SimpleStorage contract
-    let trx_hex = "0xe180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80842e64cec1";
-    let trx = parse_hex(&trx_hex);
-    let msg = ExecuteMsg::ExecuteRawEthereumTx { 
-        caller_evm_address: sender_addr.to_fixed_bytes(), 
-        unsigned_tx: trx 
-    };
-
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-    assert_eq!(170, U256::from_big_endian_fast(res.data.as_ref().unwrap().as_slice()).as_u128());
-
     // Call store(0xbb)
     let trx_hex = "0xf84180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80a46057361d00000000000000000000000000000000000000000000000000000000000000bb";
     let trx = parse_hex(&trx_hex);
@@ -164,13 +152,13 @@ fn simple_contract_interact() {
     // Call retrieve() function of SimpleStorage contract
     let trx_hex = "0xe180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80842e64cec1";
     let trx = parse_hex(&trx_hex);
-    let msg = ExecuteMsg::ExecuteRawEthereumTx { 
-        caller_evm_address: sender_addr.to_fixed_bytes(), 
-        unsigned_tx: trx 
+    let msg = QueryMsg::RawEthereumQuery {
+        caller_evm_address: sender_addr.to_fixed_bytes(),
+        unsigned_tx: trx
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap(); 
-    assert_eq!(187, U256::from_big_endian_fast(res.data.as_ref().unwrap().as_slice()).as_u128());
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    assert_eq!(187, U256::from_big_endian_fast(res.as_slice()).as_u128());
 }
 
 #[test]
@@ -200,16 +188,15 @@ fn erc20_transfer() {
 
     let contract_address = parse_h160(&res.attributes[1].value);
 
-    // Check balance of sender
     let trx_hex = "0xf84180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80a470a08231000000000000000000000000b34e2213751c5d8e9a31355fca6f1b4fa5bb6be1";
     let trx = parse_hex(&trx_hex);
-    let msg = ExecuteMsg::ExecuteRawEthereumTx {
+    let msg = QueryMsg::RawEthereumQuery {
         caller_evm_address: sender_addr.to_fixed_bytes(),
         unsigned_tx: trx
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-    println!("{:?}", res);
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    assert_eq!(10_000_000_000_000_000_000, U256::from_big_endian_fast(res.as_slice()).as_u128());
 
     // Transfer 77777 tokens from sender to receiver
     let receiver_addr: H160 = parse_h160("0x2e36b2970ab7A4C955eADD836585c21A087Ab904");
@@ -226,13 +213,13 @@ fn erc20_transfer() {
     // Check new balance of receiver
     let trx_hex = "0xf84180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80a470a082310000000000000000000000002e36b2970ab7a4c955eadd836585c21a087ab904";
     let trx = parse_hex(&trx_hex);
-    let msg = ExecuteMsg::ExecuteRawEthereumTx {
+    let msg = QueryMsg::RawEthereumQuery {
         caller_evm_address: receiver_addr.to_fixed_bytes(),
         unsigned_tx: trx
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-    assert_eq!(77777, U256::from_big_endian_fast(res.data.as_ref().unwrap().as_slice()).as_u128());
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    assert_eq!(77_777, U256::from_big_endian_fast(res.as_slice()).as_u128());
 }
 
 #[test]
@@ -277,4 +264,27 @@ fn chunked_transaction() {
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap(); 
+}
+
+#[test]
+fn account_query() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg { };
+    let info = mock_info("creator", &coins(1000, "earth"));
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    
+    let addr: H160 = parse_h160("0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1");
+
+    airdrop_write_balance(deps.as_mut(), mock_env(), addr);
+    
+    let msg = QueryMsg::QueryAccountBalance { evm_address: addr.to_fixed_bytes() };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    assert_eq!(100_000_000, U256::from_big_endian_fast(res.as_slice()).as_u128()); 
+
+    let msg = QueryMsg::QueryAccountNonce { evm_address: addr.to_fixed_bytes() };
+    let res: u64 = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(0, res); 
 }

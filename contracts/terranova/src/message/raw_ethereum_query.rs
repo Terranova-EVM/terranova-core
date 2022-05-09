@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, DepsMut, Env, Response};
+use cosmwasm_std::{Addr, Deps, Env, Response, StdError};
 use evm::H160;
 
 use crate::{
@@ -9,11 +9,11 @@ use crate::{
     executor::Machine
 };
 
-pub fn process(deps: DepsMut, env: Env, caller_address_bytes: [u8; 20], unsigned_tx: Vec<u8>) -> Result<Response, ContractError> {
+pub fn process(deps: Deps, env: Env, caller_address_bytes: [u8; 20], unsigned_tx: Vec<u8>) -> Result<Vec<u8>, ContractError> {
     let caller_address = H160::from_slice(&caller_address_bytes);
     let trx = UnsignedTransaction::from_rlp(&unsigned_tx)?;
 
-    let storage = CwStorageInterface::new_mut(
+    let storage = CwStorageInterface::new_ref(
         deps, 
         env, 
         token_mint_dummy(), 
@@ -24,13 +24,11 @@ pub fn process(deps: DepsMut, env: Env, caller_address_bytes: [u8; 20], unsigned
     execute(storage, caller_address, trx)
 }
 
-/// Implement this later
-/// Contract validation, as well as validating EVM transaction signature
 pub fn validate() -> Result<(), ContractError> {
     Ok(())
 }
 
-pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, trx: UnsignedTransaction) -> Result<Response, ContractError> {
+pub fn execute(mut storage: CwStorageInterface<Deps>, caller_address: H160, trx: UnsignedTransaction) -> Result<Vec<u8>, ContractError> {
     let (exit_reason, return_value, apply_state, used_gas, response) = {
         let mut executor = Machine::new(caller_address, &storage)?;
         executor.gasometer_mut().record_transaction_size(&trx);
@@ -75,19 +73,15 @@ pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, t
         }
     };
 
-    debug_print!("exit_reason: {:?}", exit_reason);
-    let response = response
-        .set_data(return_value);
-
     // TODO: Gas payment and calculation
 
     if let Some(apply_state) = apply_state {
-        storage.apply_state_change(apply_state)?;
-    } else {
-        // Transaction ended with error, no state to apply
-        // Increment nonce here. Normally it is incremented inside apply_state_change
-        storage.increment_nonce(&caller_address)?;
+        // The nonce of the caller and contract address increasing should be the only two changes, we simply avoid writing them to state
+        if apply_state.0.len() > 2 {
+            // return Err(StdError::GenericErr { msg: "The provided Ethereum query is invalid because it tried to incur a state change".to_string() })
+            return Err(ContractError::QueryChangedState)
+        }
     }
 
-    Ok(response)
+    Ok(return_value)
 }
