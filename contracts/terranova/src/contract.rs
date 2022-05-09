@@ -50,8 +50,8 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
         QueryMsg::RawEthereumQuery { caller_evm_address, unsigned_tx } => {
-            to_binary(&raw_ethereum_query::process(deps, env, caller_evm_address, unsigned_tx)?)
-                .map_err(|err| err.into())
+            raw_ethereum_query::process(deps, env, caller_evm_address, unsigned_tx)
+                .map(|b| b.into())
         }
         _ => Ok(to_binary(&0_i32)?)
     }
