@@ -21,7 +21,7 @@ pub struct EvmAccount {
     pub contract_storage_key: Option<H160>,
 
     /// EVM native balance 
-    /// Big-endian bytes of an evm::U256
+    /// Little-endian bytes of an evm::U256
     pub balance: U256,
 
     /// Read-write lock

@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction};
+use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction, raw_ethereum_query};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::utils::{parse_h160, parse_hex};
 
@@ -47,8 +47,12 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
+        QueryMsg::RawEthereumQuery { caller_evm_address, unsigned_tx } => {
+            to_binary(&raw_ethereum_query::process(deps, env, caller_evm_address, unsigned_tx)?)
+                .map_err(|err| err.into())
+        }
         _ => Ok(to_binary(&0_i32)?)
     }
 }
