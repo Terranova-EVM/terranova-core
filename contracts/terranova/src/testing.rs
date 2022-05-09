@@ -265,3 +265,26 @@ fn chunked_transaction() {
 
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap(); 
 }
+
+#[test]
+fn account_query() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg { };
+    let info = mock_info("creator", &coins(1000, "earth"));
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    
+    let addr: H160 = parse_h160("0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1");
+
+    airdrop_write_balance(deps.as_mut(), mock_env(), addr);
+    
+    let msg = QueryMsg::QueryAccountBalance { evm_address: addr.to_fixed_bytes() };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    assert_eq!(100_000_000, U256::from_big_endian_fast(res.as_slice()).as_u128()); 
+
+    let msg = QueryMsg::QueryAccountNonce { evm_address: addr.to_fixed_bytes() };
+    let res: u64 = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(0, res); 
+}
