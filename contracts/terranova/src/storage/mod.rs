@@ -38,10 +38,9 @@ pub struct CwStorageInterface<S: Readable> {
     /// The NOVA cw20 token mint address
     token_mint: Addr,
 
-    /// Currently unused\ 
     /// Account is an enum, either account(EvmAccount), contract(ethaccount, ethcontract)
     /// EVM accounts that have been touched so far during the course of a transaction
-    /// basically this is just a cache for us.
+    /// basically this is a cache.
     evm_accounts: BTreeMap<H160, Account>,
 
     /// Currently unused\ 

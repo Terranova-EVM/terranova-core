@@ -5,14 +5,11 @@ use serde::{Serialize, Deserialize};
 
 use crate::{storage::StorageInterface};
 
-/// TODO: Document this
 /// Each of these structs is tied to an EVM H160 address in the accounts field of ExecutorSubstate
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct ExecutorAccount {
-    /// TODO: Document this
     pub nonce: U256,
 
-    /// TODO: Document this
     #[serde(with = "serde_bytes")]
     pub code: Option<Vec<u8>>,
 
@@ -20,18 +17,14 @@ struct ExecutorAccount {
     #[serde(with = "serde_bytes")]
     pub valids: Option<Vec<u8>>,
 
-    /// TODO: Document this
     pub reset: bool,
 }
 
-/// TODO: Document this maybe a bit better
 /// Represents additional data attached to an executor.
 #[derive(Serialize, Deserialize)]
 pub struct ExecutorMetadata {
-    /// TODO: Document this
     is_static: bool,
 
-    /// Stack depth (I think)
     depth: Option<usize>,
 
     block_number: U256,
@@ -39,11 +32,7 @@ pub struct ExecutorMetadata {
     block_timestamp: U256,
 }
 
-/// TODO: Document this
 impl ExecutorMetadata {
-    /// TODO: Document this\ 
-    /// Neon description: "Creates new empty metadata with specified gas limit."
-    /// <-- wtf I don't see anything that has to do with gas limit???
     #[must_use]
     pub fn new<B: StorageInterface>(backend: &B) -> Self {
         Self {
@@ -113,7 +102,6 @@ impl ExecutorMetadata {
     }
 }
 
-/// TODO: Document this better
 /// Represents the state of an executor abstracted away from a backend.
 #[derive(Serialize, Deserialize)]
 pub struct ExecutorSubstate {
@@ -125,25 +113,12 @@ pub struct ExecutorSubstate {
     accounts: BTreeMap<H160, ExecutorAccount>,
     balances: RefCell<BTreeMap<H160, U256>>,
     storages: BTreeMap<(H160, U256), U256>,
-    // spl_balances: RefCell<BTreeMap<Pubkey, u64>>,
-    // spl_decimals: RefCell<BTreeMap<Pubkey, u8>>,
-    // spl_supply: RefCell<BTreeMap<Pubkey, u64>>,
-    // spl_transfers: Vec<SplTransfer>,
-    // spl_approves: Vec<SplApprove>,
-    // withdrawals: Vec<Withdraw>, // Withdraw from Neon to Solana
-    // erc20_allowances: RefCell<BTreeMap<(H160, H160, H160, Pubkey), U256>>,
     deletes: BTreeSet<H160>,
-    // query_account_cache: query::AccountCache,
 }
 
 /// TODO: Document this
 pub type ApplyState = (Vec::<Apply<BTreeMap<U256, U256>>>, Vec<Log>, Vec<Transfer>); //, Vec<SplTransfer>, Vec<SplApprove>, Vec<Withdraw>, Vec<ERC20Approve>);
 
-/// TODO: Document this\ 
-/// Alright I started being lazy and pasting in code without understanding every internal implementation detail
-/// and just making the changes needed to get signatures to match\ 
-/// I'm hoping these functions will just work out of the box since my implementation of
-/// StorageInterface has the same set of methods as AccountStorage in Neon and I put a good amount of consideration into it
 impl ExecutorSubstate {
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
@@ -180,9 +155,7 @@ impl ExecutorSubstate {
         &mut self.metadata
     }
 
-    /// TODO: Document this\ 
     /// Deconstructs the executor, returns state to be applied.
-    /// # Panics
     /// Panics if the executor is not in the top-level substate.
     #[must_use]
     pub fn deconstruct<B: StorageInterface>(
@@ -241,13 +214,6 @@ impl ExecutorSubstate {
             applies.push(Apply::Delete { address });
         }
 
-        // let erc20_allowances = self.erc20_allowances.take();
-        // let mut erc20_approves = Vec::with_capacity(erc20_allowances.len());
-        // for ((owner, spender, contract, mint), value) in erc20_allowances {
-        //     let approve = ERC20Approve { owner, spender, contract, mint, value };
-        //     erc20_approves.push(approve);
-        // }
-
         (applies, self.logs, self.transfers) //, self.spl_transfers, self.spl_approves, self.withdrawals, erc20_approves)
     }
 
@@ -262,15 +228,7 @@ impl ExecutorSubstate {
             accounts: BTreeMap::new(),
             balances: RefCell::new(BTreeMap::new()),
             storages: BTreeMap::new(),
-            // spl_balances: RefCell::new(BTreeMap::new()),
-            // spl_decimals: RefCell::new(BTreeMap::new()),
-            // spl_supply: RefCell::new(BTreeMap::new()),
-            // spl_transfers: Vec::new(),
-            // spl_approves: Vec::new(),
-            // withdrawals: Vec::new(),
-            // erc20_allowances: RefCell::new(BTreeMap::new()),
             deletes: BTreeSet::new(),
-            // query_account_cache: query::AccountCache::new(),
         };
         mem::swap(&mut entering, self);
 
@@ -290,16 +248,6 @@ impl ExecutorSubstate {
         self.logs.append(&mut exited.logs);
         self.balances.borrow_mut().append(&mut exited.balances.borrow_mut());
         self.transfers.append(&mut exited.transfers);
-
-        // self.spl_balances.borrow_mut().append(&mut exited.spl_balances.borrow_mut());
-        // self.spl_decimals.borrow_mut().append(&mut exited.spl_decimals.borrow_mut());
-        // self.spl_supply.borrow_mut().append(&mut exited.spl_supply.borrow_mut());
-        // self.spl_transfers.append(&mut exited.spl_transfers);
-        // self.spl_approves.append(&mut exited.spl_approves);
-
-        // self.withdrawals.append(&mut exited.withdrawals);
-
-        // self.erc20_allowances.borrow_mut().append(&mut exited.erc20_allowances.borrow_mut());
 
         let mut resets = BTreeSet::new();
         for (address, account) in &exited.accounts {
@@ -607,160 +555,6 @@ impl ExecutorSubstate {
     pub fn touch<B: StorageInterface>(&mut self, address: H160, backend: &B) {
         let _unused = self.account_mut(address, backend);
     }
-    /* 
-    fn known_spl_balance(&self, address: &Pubkey) -> Option<u64> {
-        let spl_balances = self.spl_balances.borrow();
-
-        match spl_balances.get(address) {
-            Some(balance) => Some(*balance),
-            None => self.parent.as_ref().and_then(|parent| parent.known_spl_balance(address))
-        }
-    }
-
-    #[must_use]
-    pub fn spl_balance<B: StorageInterface>(&self, address: &Pubkey, backend: &B) -> u64 {
-        let value = self.known_spl_balance(address);
-
-        value.map_or_else(
-            || {
-                let balance = backend.get_spl_token_balance(address);
-                self.spl_balances.borrow_mut().insert(*address, balance);
-
-                balance
-            },
-            |value| value
-        )
-    }
-
-    fn spl_transfer<B: StorageInterface>(&mut self, transfer: SplTransfer, backend: &B) -> Result<(), ExitError> {
-        debug_print!("spl_transfer: {:?}", transfer);
-
-        let new_source_balance = {
-            let balance = self.spl_balance(&transfer.source_token, backend);
-            balance.checked_sub(transfer.value).ok_or(ExitError::OutOfFund)?
-        };
-
-        let new_target_balance = {
-            let balance = self.spl_balance(&transfer.target_token, backend);
-            balance.checked_add(transfer.value).ok_or(ExitError::InvalidRange)?
-        };
-
-        let mut spl_balances = self.spl_balances.borrow_mut();
-        spl_balances.insert(transfer.source_token, new_source_balance);
-        spl_balances.insert(transfer.target_token, new_target_balance);
-
-        self.spl_transfers.push(transfer);
-
-        Ok(())
-    }
-
-    fn withdraw<B: StorageInterface>(&mut self, withdraw: Withdraw, backend: &B) -> Result<(), ExitError> {
-        debug_print!("withdraw: {:?}", withdraw);
-
-        let new_source_balance = {
-            let balance = self.balance(&withdraw.source, backend);
-            balance.checked_sub(withdraw.neon_amount).ok_or(ExitError::OutOfFund)?
-        };
-
-        let new_target_balance = {
-            let balance = self.spl_balance(&withdraw.dest_neon, backend);
-            balance.checked_add(withdraw.spl_amount).ok_or(ExitError::InvalidRange)?
-        };
-
-        let dest_neon = withdraw.dest_neon;
-
-        let mut balances = self.balances.borrow_mut();
-        balances.insert(withdraw.source, new_source_balance);
-        self.withdrawals.push(withdraw);
-
-        let mut spl_balances = self.spl_balances.borrow_mut();
-        spl_balances.insert(dest_neon, new_target_balance);
-
-        Ok(())
-    }
-
-    fn spl_approve(&mut self, approve: SplApprove) {
-        self.spl_approves.push(approve);
-    }
-
-    fn known_spl_decimals(&self, address: &Pubkey) -> Option<u8> {
-        let spl_decimals = self.spl_decimals.borrow();
-
-        match spl_decimals.get(address) {
-            Some(decimals) => Some(*decimals),
-            None => self.parent.as_ref().and_then(|parent| parent.known_spl_decimals(address))
-        }
-    }
-
-    #[must_use]
-    pub fn spl_decimals<B: StorageInterface>(&self, address: &Pubkey, backend: &B) -> u8 {
-        let value = self.known_spl_decimals(address);
-
-        value.map_or_else(
-            || {
-                let decimals = backend.get_spl_token_decimals(address);
-                self.spl_decimals.borrow_mut().insert(*address, decimals);
-
-                decimals
-            },
-            |value| value
-        )
-    }
-
-    fn known_spl_supply(&self, address: &Pubkey) -> Option<u64> {
-        let spl_supply = self.spl_supply.borrow();
-
-        match spl_supply.get(address) {
-            Some(decimals) => Some(*decimals),
-            None => self.parent.as_ref().and_then(|parent| parent.known_spl_supply(address))
-        }
-    }
-
-    #[must_use]
-    pub fn spl_supply<B: StorageInterface>(&self, address: &Pubkey, backend: &B) -> u64 {
-        let value = self.known_spl_supply(address);
-
-        value.map_or_else(
-            || {
-                let supply = backend.get_spl_token_supply(address);
-                self.spl_supply.borrow_mut().insert(*address, supply);
-
-                supply
-            },
-            |value| value
-        )
-    }
-
-    fn known_erc20_allowance(&self, owner: H160, spender: H160, contract: H160, mint: Pubkey) -> Option<U256> {
-        let erc20_allowances = self.erc20_allowances.borrow();
-        match erc20_allowances.get(&(owner, spender, contract, mint)) {
-            Some(&allowance) => Some(allowance),
-            None => self.parent.as_ref().and_then(|parent| parent.known_erc20_allowance(owner, spender, contract, mint))
-        }
-    }
-
-    #[must_use]
-    pub fn erc20_allowance<B: StorageInterface>(&self, owner: H160, spender: H160, contract: H160, mint: Pubkey, backend: &B) -> U256 {
-        let value = self.known_erc20_allowance(owner, spender, contract, mint);
-
-        value.map_or_else(
-            || {
-                let allowance = backend.get_erc20_allowance(&owner, &spender, &contract, &mint);
-
-                let key = (owner, spender, contract, mint);
-                self.erc20_allowances.borrow_mut().insert(key, allowance);
-
-                allowance
-            },
-            |value| value
-        )
-    }
-
-    fn erc20_approve(&mut self, approve: &ERC20Approve) {
-        let key = (approve.owner, approve.spender, approve.contract, approve.mint);
-        self.erc20_allowances.borrow_mut().insert(key, approve.value);
-    }
-    */
 
     fn known_block_hash(&self, number: U256) -> Option<H256> {
         let block_hashes = self.block_hashes.borrow();
@@ -1114,29 +908,6 @@ impl<'a, B: StorageInterface> ExecutorState<'a, B> {
         self.substate.spl_approve(approve);
 
         self.erc20_emit_approval_solana_event(context.address, owner, spender, value);
-    }
-
-    pub fn cache_solana_account(&mut self, address: Pubkey, offset: usize, length: usize) -> query::Result<()> {
-        if length == 0 || length > query::MAX_CHUNK_LEN {
-            return Err(query::Error::InvalidArgument);
-        }
-        let value = self.backend.query_account(&address, offset, length);
-        match value {
-            None => Err(query::Error::AccountNotFound),
-            Some(value) => {
-                if value.has_data() {
-                    self.substate.query_account_cache.put(address, value);
-                    Ok(())
-                } else {
-                    Err(query::Error::InvalidArgument)
-                }
-            }
-        }
-    }
-
-    #[must_use]
-    pub fn query_solana_account(&self) -> &query::AccountCache {
-        &self.substate.query_account_cache
     }
 
     #[must_use]

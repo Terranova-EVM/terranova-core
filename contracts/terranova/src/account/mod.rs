@@ -8,15 +8,13 @@ pub struct EvmAccount {
     /// Bytes of an evm::H160
     pub address: H160,
 
-    /// Solana/(Cosmwasm?) account nonce
-    /// TODO: This is copied from Neon. Do we need this? (I believe not)
     pub bump_seed: u8,
 
     /// Ethereum account nonce
     pub trx_count: u64,
 
     /// TODO: Document this, explain why a contract account's H160 address can be used in 
-    /// our Cosmwasm implementation of EVM as the key to its storage, rather than how it's done in Ethereum
+    /// our wasm implementation of EVM as the key to its storage, rather than how it's done in Ethereum
     /// Option of bytes of an evm::H160
     pub contract_storage_key: Option<H160>,
 

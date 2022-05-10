@@ -1,3 +1,0 @@
-[submodule "contracts/evm"]
-	path = contracts/rust-evm
-	url = git@github.com:Terranova-EVM/evm.git

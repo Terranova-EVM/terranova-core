@@ -4,7 +4,8 @@ use evm::{U256, H160};
 
 use crate::{storage::StorageInterface, executor_state::ExecutorState, transaction::UnsignedTransaction};
 
-/// THIS IS A DUMMY TO MAKE FUNCTION CALLS WORK
+/// Not required for bytecode execution itself, but necessary if you want to measure opcode usage 
+/// TODO: Flesh out the skeleton here
 pub struct Gasometer {
     gas: u64,
 }
@@ -19,7 +20,6 @@ impl Gasometer {
         U256::from(self.gas)
     }
 
-    /// DUMMY
     pub fn record_iterative_overhead(&mut self) {
 
     }
