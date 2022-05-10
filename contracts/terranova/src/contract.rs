@@ -4,6 +4,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 use cw2::set_contract_version;
 use evm::H160;
 
+use crate::airdrop::airdrop_write_balance;
 use crate::error::ContractError;
 use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction, raw_ethereum_query, EvmAccountResponse};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -17,10 +18,14 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let addr: H160 = parse_h160("0xB34e2213751c5d8e9a31355fcA6F1B4FA5bB6bE1");
+
+    airdrop_write_balance(deps, env, addr);
+
     Ok(Response::new())
 }
 

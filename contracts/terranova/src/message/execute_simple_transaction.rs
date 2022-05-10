@@ -62,7 +62,7 @@ pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, t
 
         let used_gas = executor.used_gas();
         if used_gas > trx.gas_limit {
-            (evm::ExitError::OutOfGas.into(), vec![], None, trx.gas_limit, response)
+            (evm::ExitError::OutOfGas.into(), vec![], None, trx.gas_limit, Response::new())
         } else {
             let apply = if exit_reason.is_succeed() {
                 let executor_state = executor.into_state();
@@ -78,14 +78,14 @@ pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, t
     debug_print!("exit_reason: {:?}", exit_reason);
 
     let response = response
-        .add_attribute("result", hex::encode(&return_value));
+        .add_attribute("result", hex::encode(&return_value))
+        .add_attribute("evm_exit_reason", format!("{:?}", exit_reason));
 
     let response = response
         .set_data(return_value);
 
 
     // TODO: Gas payment and calculation
-
     if let Some(apply_state) = apply_state {
         storage.apply_state_change(apply_state)?;
     } else {
