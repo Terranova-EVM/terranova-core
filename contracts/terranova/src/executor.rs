@@ -451,7 +451,9 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         self.runtime.push((runtime, CreateReason::Call));
 
         let response = Response::new()
-            .add_attribute("tx_type", "call");
+            .add_attribute("tx_type", "call")
+            .add_attribute("from", hex::encode(caller))
+            .add_attribute("to", hex::encode(code_address));
         
         Ok(response)
     }
@@ -520,7 +522,8 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
                 
                 Response::new()
                     .add_attribute("tx_type", "create")
-                    .add_attribute("address", "0x".to_string() + &hex::encode(info.address.as_bytes()))
+                    .add_attribute("from", hex::encode(caller))
+                    .add_attribute("created_address", "0x".to_string() + &hex::encode(info.address.as_bytes()))
             }
         };
 
