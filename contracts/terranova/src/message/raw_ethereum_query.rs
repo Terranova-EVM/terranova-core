@@ -9,7 +9,9 @@ use crate::{
     executor::Machine
 };
 
-pub fn process(deps: Deps, env: Env, caller_address_bytes: [u8; 20], unsigned_tx: Vec<u8>) -> Result<Vec<u8>, ContractError> {
+use super::RawEthereumQueryResponse;
+
+pub fn process(deps: Deps, env: Env, caller_address_bytes: [u8; 20], unsigned_tx: Vec<u8>) -> Result<RawEthereumQueryResponse, ContractError> {
     let caller_address = H160::from_slice(&caller_address_bytes);
     let trx = UnsignedTransaction::from_rlp(&unsigned_tx)?;
 
@@ -28,7 +30,7 @@ pub fn validate() -> Result<(), ContractError> {
     Ok(())
 }
 
-pub fn execute(mut storage: CwStorageInterface<Deps>, caller_address: H160, trx: UnsignedTransaction) -> Result<Vec<u8>, ContractError> {
+pub fn execute(mut storage: CwStorageInterface<Deps>, caller_address: H160, trx: UnsignedTransaction) -> Result<RawEthereumQueryResponse, ContractError> {
     let (exit_reason, return_value, apply_state, used_gas, response) = {
         let mut executor = Machine::new(caller_address, &storage)?;
         executor.gasometer_mut().record_transaction_size(&trx);
@@ -83,5 +85,7 @@ pub fn execute(mut storage: CwStorageInterface<Deps>, caller_address: H160, trx:
         }
     }
 
-    Ok(return_value)
+    Ok(RawEthereumQueryResponse {
+        result: return_value
+    })
 }

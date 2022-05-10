@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 use evm::H160;
 
 use crate::error::ContractError;
-use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction, raw_ethereum_query};
+use crate::message::{execute_simple_transaction, store_transaction_chunk, execute_chunked_transaction, raw_ethereum_query, EvmAccountResponse};
 use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::storage::backend::ACCOUNTS;
 use crate::utils::{parse_h160, parse_hex};
@@ -52,31 +52,25 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
         QueryMsg::RawEthereumQuery { caller_evm_address, unsigned_tx } => {
-            raw_ethereum_query::process(deps, env, caller_evm_address, unsigned_tx)
-                .map(|b| b.into())
+            to_binary(
+                &raw_ethereum_query::process(deps, env, caller_evm_address, unsigned_tx)?
+            ).map_err(|e| e.into())
         }
-        QueryMsg::QueryAccountBalance { evm_address } => {
-            query_account_balance(deps, evm_address)
-                .map_err(|err| err.into())
-        }
-        QueryMsg::QueryAccountNonce { evm_address } => {
-            to_binary(&query_account_nonce(deps, evm_address)?)
-                .map_err(|err| err.into())
+        QueryMsg::QueryEvmAccount { evm_address } => {
+            to_binary(
+                &query_account(deps, evm_address)?
+            ).map_err(|e| e.into())
         }
         _ => Ok(to_binary(&0_i32)?)
     }
 }
 
-fn query_account_balance(deps: Deps, address_bytes: [u8; 20]) -> StdResult<Binary> {
+fn query_account(deps: Deps, address_bytes: [u8; 20]) -> Result<EvmAccountResponse, ContractError> {
     ACCOUNTS.load(
         deps.storage,
         &H160::from_slice(&address_bytes)
-    ).map(|acc| acc.balance.to_bytes().into())
-}
-
-fn query_account_nonce(deps: Deps, address_bytes: [u8; 20]) -> StdResult<u64> {
-    ACCOUNTS.load(
-        deps.storage,
-        &H160::from_slice(&address_bytes)
-    ).map(|acc| acc.trx_count)
+    ).map(|acc| EvmAccountResponse {
+        balance: Uint256::from_be_bytes(acc.balance.to_bytes()),
+        nonce: acc.trx_count
+    }).map_err(|e| e.into())
 }

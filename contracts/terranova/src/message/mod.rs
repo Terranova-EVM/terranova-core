@@ -1,3 +1,4 @@
+use cosmwasm_std::Uint256;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -49,13 +50,20 @@ pub enum QueryMsg {
         unsigned_tx: Vec<u8>
     },
 
-    QueryAccountBalance {
+    QueryEvmAccount {
         evm_address: [u8; 20],
     },
+}
 
-    QueryAccountNonce {
-        evm_address: [u8; 20],
-    },
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct RawEthereumQueryResponse {
+    pub result: Vec<u8> // Bytes
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct EvmAccountResponse {
+    pub balance: Uint256,
+    pub nonce: u64
 }
 
 pub mod execute_simple_transaction;

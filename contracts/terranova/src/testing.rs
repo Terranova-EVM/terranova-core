@@ -1,11 +1,11 @@
 use super::*;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{coins, from_binary, Order};
+use cosmwasm_std::{coins, from_binary, Order, Uint256};
 use evm::{H160, U256};
 use crate::airdrop::{airdrop_write_balance, airdrop_deploy_contract, get_backend};
 use crate::contract::{instantiate, execute, query};
 use crate::storage::backend::{ACCOUNTS, CONTRACTS, CONTRACT_STORAGE};
-use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::message::{ExecuteMsg, InstantiateMsg, QueryMsg, RawEthereumQueryResponse, EvmAccountResponse};
 use crate::transaction::UnsignedTransaction;
 use crate::utils::{parse_h160, parse_hex};
 use env_logger;
@@ -195,8 +195,9 @@ fn erc20_transfer() {
         unsigned_tx: trx
     };
 
-    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
-    assert_eq!(10_000_000_000_000_000_000, U256::from_big_endian_fast(res.as_slice()).as_u128());
+    let res: RawEthereumQueryResponse = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    println!("Balance result: {:?}", res);
+    assert_eq!(10_000_000_000_000_000_000, U256::from_big_endian_fast(&res.result).as_u128());
 
     // Transfer 77777 tokens from sender to receiver
     let receiver_addr: H160 = parse_h160("0x2e36b2970ab7A4C955eADD836585c21A087Ab904");
@@ -218,9 +219,9 @@ fn erc20_transfer() {
         unsigned_tx: trx
     };
 
-    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    let res: RawEthereumQueryResponse = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
     println!("Balance result: {:?}", res);
-    assert_eq!(77_777, U256::from_big_endian_fast(res.as_slice()).as_u128());
+    assert_eq!(77_777, U256::from_big_endian_fast(&res.result).as_u128());
 }
 
 #[test]
@@ -281,11 +282,8 @@ fn account_query() {
 
     airdrop_write_balance(deps.as_mut(), mock_env(), addr);
     
-    let msg = QueryMsg::QueryAccountBalance { evm_address: addr.to_fixed_bytes() };
-    let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
-    assert_eq!(100_000_000, U256::from_big_endian_fast(res.as_slice()).as_u128()); 
-
-    let msg = QueryMsg::QueryAccountNonce { evm_address: addr.to_fixed_bytes() };
-    let res: u64 = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
-    assert_eq!(0, res); 
+    let msg = QueryMsg::QueryEvmAccount { evm_address: addr.to_fixed_bytes() };
+    let res: EvmAccountResponse = from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!("100000000", res.balance.to_string()); 
+    assert_eq!(0, res.nonce); 
 }
