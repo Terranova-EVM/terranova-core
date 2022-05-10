@@ -76,8 +76,13 @@ pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, t
     };
 
     debug_print!("exit_reason: {:?}", exit_reason);
+
+    let response = response
+        .add_attribute("result", hex::encode(&return_value));
+
     let response = response
         .set_data(return_value);
+
 
     // TODO: Gas payment and calculation
 

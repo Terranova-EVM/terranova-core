@@ -451,7 +451,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         self.runtime.push((runtime, CreateReason::Call));
 
         let response = Response::new()
-            .add_attribute("type", "call");
+            .add_attribute("tx_type", "call");
         
         Ok(response)
     }
@@ -519,7 +519,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
                     .push((instance, CreateReason::Create(info.address)));
                 
                 Response::new()
-                    .add_attribute("type", "create")
+                    .add_attribute("tx_type", "create")
                     .add_attribute("address", "0x".to_string() + &hex::encode(info.address.as_bytes()))
             }
         };

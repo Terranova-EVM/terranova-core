@@ -209,7 +209,7 @@ fn erc20_transfer() {
     };
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
+    println!("Execute result: {:?}", res);
     // Check new balance of receiver
     let trx_hex = "0xf84180018398968094ff3b783539a1a7a53ecacfb1c0778274c670f35b80a470a082310000000000000000000000002e36b2970ab7a4c955eadd836585c21a087ab904";
     let trx = parse_hex(&trx_hex);
@@ -219,6 +219,7 @@ fn erc20_transfer() {
     };
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap().to_vec();
+    println!("Balance result: {:?}", res);
     assert_eq!(77_777, U256::from_big_endian_fast(res.as_slice()).as_u128());
 }
 
