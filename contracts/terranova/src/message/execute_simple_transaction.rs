@@ -78,7 +78,7 @@ pub fn execute(mut storage: CwStorageInterface<DepsMut>, caller_address: H160, t
     debug_print!("exit_reason: {:?}", exit_reason);
 
     let response = response
-        .add_attribute("result", hex::encode(&return_value))
+        .add_attribute("result", "0x".to_string() + &hex::encode(&return_value))
         .add_attribute("evm_exit_reason", format!("{:?}", exit_reason));
 
     let response = response
