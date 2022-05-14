@@ -445,9 +445,9 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
             apparent_value: transfer_value,
         };
 
+        debug_print!("Pushing call to executor runtime, code_address: {:?}, valids: {:?}, caller: {:?}, input: {:?}", code_address, valids, caller, input);
         let runtime = evm::Runtime::new(code, valids, input, context);
 
-        debug_print!("Pushing call to executor runtime");
         self.runtime.push((runtime, CreateReason::Call));
 
         let response = Response::new()
@@ -596,7 +596,7 @@ impl<'a, B: StorageInterface> Machine<'a, B> {
         debug_print!("apply_call {:?}", interrupt);
         let code = self.executor.code(interrupt.code_address);
         let valids = self.executor.valids(interrupt.code_address);
-
+        debug_print!("Interrupt valids: {}", hex::encode(&valids));
         self.executor.state.enter(interrupt.is_static);
         self.executor.state.touch(interrupt.code_address);
 

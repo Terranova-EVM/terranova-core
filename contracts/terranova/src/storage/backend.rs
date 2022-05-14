@@ -46,6 +46,7 @@ impl<S: Readable> StorageInterface for CwStorageInterface<S> {
     ///
     /// Converted from the Cosmwasm block time, which is in nanoseconds by default
     fn block_timestamp(&self) -> evm::U256 {
+        debug_print!("storage/backend.rs, getting block timestamp: {}", self.cw_env.block.time.seconds());
         self.cw_env.block.time.seconds().into()
     }
 

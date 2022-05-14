@@ -62,7 +62,7 @@ impl<S: Readable + Writable> CwStorageInterface<S> {
             self.init_new_account(address).unwrap();
         }
 
-        self.write_balance(address, U256::from(100_000_000)).unwrap();
+        self.write_balance(address, U256::from(1_000_000_000_000_000_000_000_u128)).unwrap();
     }
 
     /// This takes the actual raw contract bytecode that should be written, NOT the contract initialization bytecode in a contract create messaage
