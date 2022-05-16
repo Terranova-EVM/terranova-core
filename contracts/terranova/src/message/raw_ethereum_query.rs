@@ -77,13 +77,13 @@ pub fn execute(mut storage: CwStorageInterface<Deps>, caller_address: H160, trx:
 
     // TODO: Gas payment and calculation
 
-    if let Some(apply_state) = apply_state {
-        // The nonce of the caller and contract address increasing should be the only two changes, we simply avoid writing them to state
-        if apply_state.0.len() > 2 {
-            // return Err(StdError::GenericErr { msg: "The provided Ethereum query is invalid because it tried to incur a state change".to_string() })
-            return Err(ContractError::QueryChangedState)
-        }
-    }
+    // if let Some(apply_state) = apply_state {
+    //     // The nonce of the caller and contract address increasing should be the only two changes, we simply avoid writing them to state
+    //     if apply_state.0.len() > 2 {
+    //         // return Err(StdError::GenericErr { msg: "The provided Ethereum query is invalid because it tried to incur a state change".to_string() })
+    //         return Err(ContractError::QueryChangedState)
+    //     }
+    // }
 
     Ok(RawEthereumQueryResponse {
         result: return_value
